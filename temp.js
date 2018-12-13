@@ -6,6 +6,7 @@ class A {
       this.delimiters
     ) {
       // pass
+      // foo
     }
   }
 }
