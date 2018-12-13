@@ -5,9 +5,8 @@ class A {
       this.multiple &&
       this.delimiters
     ) {
-      // pass
+      // pass2
       // foo
-      // bar
     }
   }
 }
