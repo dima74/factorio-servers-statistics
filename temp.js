@@ -7,6 +7,7 @@ class A {
     ) {
       // pass
       // foo
+      // bar
     }
   }
 }
