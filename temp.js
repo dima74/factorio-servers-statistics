@@ -3,7 +3,7 @@ class A {
     if (
       val &&
       this.multiple &&
-      this.delimiters
+      this.delimiters.length
     ) {
       // pass2
       // foo
