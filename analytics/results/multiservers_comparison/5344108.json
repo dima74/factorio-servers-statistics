@@ -1,0 +1,28 @@
+{
+  "application_version": {
+    "build_mode": "headless",
+    "build_version": 36654,
+    "game_version": "0.16.51",
+    "platform": "linux64"
+  },
+  "description": "game5 at xzwq.net (512 by 512: expand)",
+  "game_id": 5344108,
+  "game_time_elapsed": "916",
+  "has_password": true,
+  "host_address": "75.140.250.86:34201",
+  "last_heartbeat": 1559582996.413835,
+  "max_players": 4,
+  "mods": [
+    {
+      "name": "base",
+      "version": "0.16.51"
+    }
+  ],
+  "mods_crc": 0,
+  "name": "factorio5.xzwq.net",
+  "server_id": "SKSLWUMni0/xLWSPFoIg/uaHEQiWXCUPbcc0s8uoaqI=",
+  "tags": [
+    "vanilla",
+    "xzwq.net"
+  ]
+}

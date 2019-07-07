@@ -1,0 +1,28 @@
+{
+  "application_version": {
+    "build_mode": "headless",
+    "build_version": 36654,
+    "game_version": "0.16.51",
+    "platform": "linux64"
+  },
+  "description": "game2 hosted xzwq.net (4k by 1k)",
+  "game_id": 5344116,
+  "game_time_elapsed": "14724",
+  "has_password": true,
+  "host_address": "75.140.250.86:34198",
+  "last_heartbeat": 1559582887.599558,
+  "max_players": 4,
+  "mods": [
+    {
+      "name": "base",
+      "version": "0.16.51"
+    }
+  ],
+  "mods_crc": 0,
+  "name": "factorio2.xzwq.net",
+  "server_id": "QnWocbbOia7Bq4XtzPMlnx4BeE7A5cQ+RQOvpVa0eK8=",
+  "tags": [
+    "bobs_mods",
+    "xzwq.net"
+  ]
+}
