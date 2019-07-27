@@ -31,7 +31,6 @@ pub struct Game {
     pub game_time_elapsed: u32,
     pub has_password: bool,
     pub tags: Vec<String>,
-    pub last_heartbeat: f64,
     pub mod_count: u16,
 
     pub description: String,
@@ -59,6 +58,7 @@ fn convert_game(game: &state::Game, state: &State) -> Game {
 //        host_id: String::from_utf8(game.host_id.to_vec()).unwrap(),
         host_id: "todo".to_owned(),
         name: state.all_game_names.get(game.name).into(),
+        description: state.all_game_descriptions.get(game.description).into(),
         max_players: game.max_players,
         game_version: state.all_versions.get(game.game_version).into(),
         game_time_elapsed: game.game_time_elapsed,
@@ -66,12 +66,9 @@ fn convert_game(game: &state::Game, state: &State) -> Game {
 //        tags: state.all_tags.get(game.tags).into().split("\n"),
         // todo
         tags: vec![],
-        last_heartbeat: game.last_heartbeat,
         mod_count: game.mod_count,
-//        description: state.all_game_descriptions.get(game.description.unwrap()).into(),
-//        host_address: state.all_host_addresses.get(game.host_address.unwrap()).into(),
-        description: "todo".to_owned(),
-        host_address: "todo".to_owned(),
+        host_address: state.all_host_addresses.get(game.host_address.unwrap()).into(),
+//        host_address: "todo".to_owned(),
         // todo
         mods: None,
     }

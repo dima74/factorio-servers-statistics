@@ -99,15 +99,15 @@ pub fn saver(
     receiver: mpsc::Receiver<SaverEvent>,
 ) {
     for event in receiver {
-        println!("[saver] start (by event {:?})", event);
+        println!("[info]  [saver] start (by event {:?})", event);
         let updater_state = updater_state_lock.read();
         let state = state_lock.read();
         let fetcher_get_game_details_state = fetcher_get_game_details_state_lock.read();
         save_state(&updater_state, &state, &fetcher_get_game_details_state);
         if event == SIGINT {
-            println!("[saver] exit (finished)");
+            println!("[info]  [saver] exit (finished)");
             std::process::exit(77);
         }
     }
-    println!("[saver] exit");
+    eprintln!("[error] [saver] exit");
 }

@@ -49,7 +49,7 @@ fn main() {
         _ => panic!("unknown <TYPE> option"),
     };
 
-    println!("[main] exit");
+    println!("[info]  [main] exit");
 }
 
 fn spawn_thread_with_name<F>(name: &str, f: F) -> JoinHandle<()>
@@ -69,7 +69,7 @@ fn regular_saver_notifier(sender: mpsc::Sender<SaverEvent>) {
             break;
         }
     }
-    println!("[regular_saver_notifier] exit");
+    println!("[info]  [regular_saver_notifier] exit");
 }
 
 fn run_production_pipeline() {
@@ -121,7 +121,7 @@ fn run_production_pipeline() {
         let already_received_sigint = AtomicBool::new(false);
         ctrlc::set_handler(move || {
             if already_received_sigint.swap(true, Ordering::SeqCst) {
-                println!("[sigint_handler] already received sigint");
+                println!("[warn]  [sigint_handler] already received sigint");
                 return;
             }
             // .send() возвращает ошибку если receiver был уничтожен (deallocate), но у нас такого не может быть

@@ -92,17 +92,16 @@ pub struct Game {
 
     pub host_id: HostId,
     pub name: BigStringPart,
+    pub description: BigStringPart,
     pub max_players: u32,
     pub game_version: BigStringPart,
     pub game_time_elapsed: u32,
     pub has_password: bool,
     // разделённые символом \x02
     pub tags: BigStringPart,
-    pub last_heartbeat: f64,
     pub mod_count: u16,
 
     // None означает что значение ещё не получено (с помощью запроса на /get-game-details)
-    pub description: Option<BigStringPart>,
     pub host_address: Option<BigStringPart>,
     // None означает что значение ещё не получено или что такое же как у prev_game_id
     // todo: "такое же как у prev_game_id"
@@ -186,9 +185,7 @@ impl State {
         let map_player_names = self.all_player_names.compress();
         for game in self.games.values_mut() {
             game.name = *map_names.get(&game.name).unwrap();
-            if let Some(ref mut description) = game.description {
-                *description = *map_descriptions.get(description).unwrap();
-            }
+            game.description = *map_descriptions.get(&game.description).unwrap();
             game.game_version = *map_versions.get(&game.game_version).unwrap();
             game.tags = *map_tags.get(&game.tags).unwrap();
             if let Some(ref mut host_address) = game.host_address {

@@ -41,7 +41,7 @@ pub fn fetcher(sender: mpsc::Sender<FetcherOutput>) {
         let time = duration_since(SystemTime::now(), UNIX_EPOCH);
         let time_next = Duration::from_secs((time.as_secs() / minute + 1) * minute);
         if !first_time && (time_next - time).as_secs() * 2 < minute {
-            eprintln!("[fetcher_get_games] warning: время сна меньше чем половина минуты");
+            eprintln!("[warn]  [fetcher_get_games] время сна меньше чем половина минуты");
         }
         thread::sleep(time_next.sub(time));
     };
@@ -55,13 +55,13 @@ pub fn fetcher(sender: mpsc::Sender<FetcherOutput>) {
             let relative_error = f64::abs(duration_between_fetches
                 .div_duration_f64(Duration::from_secs(minute)) - 1.0);
             if relative_error > 0.1 {
-                eprintln!("[fetcher_get_games] warning: duration between fetches differs from 60 seconds, observed duration is {:?}", duration_between_fetches);
+                eprintln!("[warn]  [fetcher_get_games] duration between fetches differs from 60 seconds, observed duration is {:?}", duration_between_fetches);
             }
         }
         last_fetch_time = Some(current_fetch_time);
 
         let response_time = TimeMinutes::now();
-        println!("[fetcher_get_games] fetch at secs={}, minutes={}, utc={}",
+        println!("[info]  [fetcher_get_games] fetch at secs={}, minutes={}, utc={}",
                  duration_since(SystemTime::now(), UNIX_EPOCH).as_secs(),
                  response_time.get(),
                  Utc::now()

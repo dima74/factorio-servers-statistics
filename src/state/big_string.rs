@@ -27,7 +27,7 @@ impl BigString {
 
     pub fn add(&mut self, string: &str) -> BigStringPart {
         let string = if string.contains('\x00') {
-            eprintln!("warning: found \\x00 in BigStringPart");
+            eprintln!("[warn]  found \\x00 in BigStringPart");
             string.replace('\x00', "\x01")
         } else {
             // todo лишнее копирование :)
@@ -95,7 +95,7 @@ impl BigString {
             self.content[new_index - 1] = 0;
             self.content[new_index + part_length] = 0;
         }
-        println!("[big_string] {:20}: {} → {}", self.debug_name, self.content.len(), next_part_index);
+        println!("[info]  [big_string] {:20}: {} → {}", self.debug_name, self.content.len(), next_part_index);
         self.content.truncate(next_part_index);
 
         new_index_by_old_index
@@ -134,6 +134,11 @@ impl<'a> From<FssStr<'a>> for FssString {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sizes() {
+        assert_eq!(std::mem::size_of::<Option<BigStringPart>>(), 4);
+    }
 
     #[test]
     fn basic() {
