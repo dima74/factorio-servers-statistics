@@ -12,7 +12,7 @@ use std::time::Duration;
 use clap::{App, Arg, value_t};
 use parking_lot::RwLock;
 
-use fss::{analytics, external_storage, fetcher_get_game_details, fetcher_get_games, state};
+use fss::{analytics, external_storage, fetcher_get_game_details, fetcher_get_games, fetcher_get_games_offline, state};
 use fss::external_storage::SaverEvent;
 use fss::global_config::GLOBAL_CONFIG;
 
@@ -198,7 +198,7 @@ fn debug_updater() {
 fn create_state_from_saved_data(number_responses: u32) {
     // fetcher_get_games
     let (sender, receiver) = mpsc::channel();
-    let fetcher_thread = spawn_thread_with_name("fetcher_get_games", move || fetcher_get_games::fetcher_offline(sender, number_responses));
+    let fetcher_thread = spawn_thread_with_name("fetcher_get_games", move || fetcher_get_games_offline::fetcher(sender, number_responses));
 
     // state
     let whole_state = external_storage::get_empty_state();

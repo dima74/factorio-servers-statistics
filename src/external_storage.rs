@@ -51,7 +51,9 @@ pub fn get_empty_state() -> WholeState {
 }
 
 pub fn fetch_state() -> WholeState {
-    unimplemented!()
+//    todo
+//    unimplemented!()
+    get_empty_state()
 }
 
 pub fn load_state_from_file(filename: &str) -> WholeState {
@@ -89,7 +91,8 @@ pub fn save_state(
     state: &State,
     fetcher_get_game_details_state: &fetcher_get_game_details::State,
 ) {
-    unimplemented!();
+//    todo
+//    unimplemented!();
 }
 
 pub fn saver(

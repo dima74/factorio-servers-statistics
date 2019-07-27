@@ -1,0 +1,7 @@
+{
+  "name": "Factorio servers statistics",
+  "description": "Provides statistics about factorio servers",
+  "buildpacks": [ {"url": "emk/rust"} ],
+  "repository": "https://github.com/dima74/Wikipedia-Yofication",
+  "keywords": ["factorio", "statistics"]
+}

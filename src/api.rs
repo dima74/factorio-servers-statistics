@@ -65,7 +65,7 @@ pub struct Game {
     pub steam_id: Option<String>,
 }
 
-fn convert_from_string<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+pub fn convert_from_string<'de, T, D>(deserializer: D) -> Result<T, D::Error>
     where T: FromStr,
           T::Err: fmt::Display,
           D: de::Deserializer<'de>

@@ -14,22 +14,6 @@ use crate::util::duration_since;
 
 pub type FetcherOutput = (api::GetGamesResponse, TimeMinutes);
 
-pub fn fetcher_offline(sender: mpsc::Sender<FetcherOutput>, number_responses: u32) {
-    assert!(number_responses <= 2880);
-    for i in 0..number_responses {
-        if i % 10 == 0 {
-            println!("{:4}", i);
-        }
-        let file = File::open(format!("analytics/data/{:04}.json", i)).unwrap();
-        let mut games: Vec<api::Game> = serde_json::from_reader(file).unwrap();
-        api::clean_get_games_response(&mut games);
-
-        let get_games_response = games;
-        let response_time = TimeMinutes::new(1 + i).unwrap();
-        sender.send((get_games_response, response_time)).unwrap()
-    }
-}
-
 pub fn fetcher(sender: mpsc::Sender<FetcherOutput>) {
     let minute = 60;  // в секундах
 
