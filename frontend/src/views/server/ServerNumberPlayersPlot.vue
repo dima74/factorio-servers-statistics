@@ -41,7 +41,7 @@
   import * as d3 from 'd3';
   import Plot from './plot';
   import { mapState } from 'vuex';
-  import { assert } from '@/util.ts';
+  import { assert, dateToTimeMinutes, timeMinutesToDate } from '@/util.ts';
 
   export default {
     name: 'ServerNumberPlayersPlot',
@@ -73,8 +73,6 @@
       pageHeight: 'updateSvgWidth',
       svgSize: 'updatePlot',
       cursorTime(time) {
-        // todo vertical line
-
         if (time === null) {
           this.$emit('hoverPlot', null);
         } else {
@@ -114,9 +112,10 @@
         const xMax = +10 + Math.max(...xs);
         const xMin = -10 + Math.min(...xs);
 
-        const xScale = d3.scaleLinear()
-            .domain([xMin, xMax])
+        const xScale = d3.scaleTime()
+            .domain([timeMinutesToDate(xMin), timeMinutesToDate(xMax)])
             .range([0, width]);
+        this.xScale = xScale;
 
         const yScale = d3.scaleLinear()
             .domain([0, yMax])
@@ -124,7 +123,7 @@
 
         // 3. d3's line generator
         const line = d3.line<{ time: TimeMinutes, numberPlayers: number }>()
-            .x(d => xScale(d.time))
+            .x(d => xScale(timeMinutesToDate(d.time)))
             .y(d => yScale(d.numberPlayers))
             .curve(d3.curveBasis);
 
@@ -183,16 +182,13 @@
             .attr('class', 'line')
             .attr('d', line);
 
-        this.xScale = xScale;
-
-
         // todo: extract
         plot.on('mouseleave', () => {
           this.cursorTime = null;
         });
         plot.on('mousemove', (d, i, nodes) => {
           const [x, y] = d3.mouse(nodes[i]);
-          const cursorTime = xScale.invert(x);
+          const cursorTime = dateToTimeMinutes(xScale.invert(x));
           if (this.timeBegin <= cursorTime && cursorTime < this.timeEnd) {
             this.cursorTime = cursorTime;
           } else {
@@ -200,15 +196,16 @@
           }
         });
       },
-      updateVerticalLine(time) {
-        if (time === null) {
+      updateVerticalLine(timeMinutes) {
+        if (timeMinutes === null) {
           this.cursorVerticalLine.attr('visibility', 'hidden');
         } else {
+          const date = timeMinutesToDate(timeMinutes);
           this.cursorVerticalLine
               .attr('visibility', 'visible')
-              .attr('x1', this.xScale(time))
+              .attr('x1', this.xScale(date))
               .attr('y1', 0)
-              .attr('x2', this.xScale(time))
+              .attr('x2', this.xScale(date))
               .attr('y2', this.plotHeight);
         }
       },

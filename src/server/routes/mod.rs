@@ -10,7 +10,7 @@ pub mod get_server_info;
 
 #[get("/")]
 pub fn index() -> &'static str {
-    "Hello, world!"
+    "api works!"
 }
 
 #[derive(Serialize)]

@@ -1,8 +1,8 @@
 <template>
-  <v-flex xs3 class="pa-1 text-xs-center">
+  <v-flex xs3 class="pa-1 text-center">
     <!-- todo: scroll -->
     <h2 class="title mb-3">
-      {{ hoverPlot ? `Players at ${Math.round(hoverPlot.time)}` : 'Current online players' }}
+      {{ title }}
     </h2>
     <div
       v-for="player of (hoverPlot ? hoverPlot.players : currentOnlinePlayers)"
@@ -17,6 +17,8 @@
 </style>
 
 <script lang="ts">
+  import { timeMinutesToDate } from '@/util';
+
   export default {
     name: 'PlayersList',
     props: {
@@ -54,6 +56,11 @@
         }
         return intervals.slice(firstOnlinePlayerIndex)
             .sort((player1, player2) => player1.begin - player2.begin);
+      },
+      title() {
+        return this.hoverPlot
+            ? `Players at ${timeMinutesToDate(this.hoverPlot.time).toLocaleString()}`
+            : 'Current online players';
       },
     },
   };

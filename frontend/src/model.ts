@@ -26,15 +26,14 @@ class Game {
 
   hostId: String;
   name: String;
+  description: String;
   maxPlayers: number;
   gameVersion: String;
   gameTimeElapsed: number;
   hasPassword: boolean;
   tags: String[];
-  lastHeartbeat: number;
   modCount: number;
 
-  description: String;
   hostAddress: String;
   mods?: Mod[];
 }
