@@ -198,12 +198,48 @@ fn try_merge_by_property<F>(
     if prev_game_ids_by_property.len() == prev_game_ids_host.len() && curr_game_ids_by_property.len() == curr_game_ids_host.len() {
         for (property_value, game_id) in curr_game_ids_by_property {
             let prev_game_id = prev_game_ids_by_property.get(&property_value);
-            merge_games(game_id, prev_game_id.map(ToOwned::to_owned), state);
+            merge_games(game_id, prev_game_id.copied(), state);
         }
         true
     } else {
         false
     }
+}
+
+fn try_merge_host(prev_game_ids_host: &[GameId], curr_game_ids_host: &[GameId], state: &mut State) -> bool {
+    // не рассматриваем game_id, которые как были так и остались
+    let prev_game_ids_host: HashSet<GameId> = prev_game_ids_host.iter().copied().collect();
+    let curr_game_ids_host: HashSet<GameId> = curr_game_ids_host.iter().copied().collect();
+    let common_game_ids_host = prev_game_ids_host.intersection(&curr_game_ids_host).copied().collect();
+    let prev_game_ids_host: Vec<GameId> = prev_game_ids_host.difference(&common_game_ids_host).copied().collect();
+    let curr_game_ids_host: Vec<GameId> = curr_game_ids_host.difference(&common_game_ids_host).copied().collect();
+
+    // не объединяем game_ids пока не отправили запрос на /get-game-details
+    // по идее проверка для prev_game_ids_host лишняя, так как для них уже проверяли когда объединяли их
+    for &game_id in Iterator::chain(prev_game_ids_host.iter(), curr_game_ids_host.iter()) {
+        if !state.get_game(game_id).are_details_fetched() {
+            return false;
+        }
+    }
+
+    if curr_game_ids_host.len() == 1 && prev_game_ids_host.len() == 1 {
+        merge_games(curr_game_ids_host[0], Some(prev_game_ids_host[0]), state);
+    } else if curr_game_ids_host.len() == 1 && prev_game_ids_host.len() == 0 {
+        merge_games(curr_game_ids_host[0], None, state);
+    } else {
+        let get_game_name = |&game_id: &GameId, state: &State| state.get_game_name(game_id).into();
+        let get_game_host = |&game_id: &GameId, state: &State| state.get_game_host(game_id).unwrap().into();
+        try_merge_by_property(&prev_game_ids_host, &curr_game_ids_host, state, get_game_name) ||
+            try_merge_by_property(&prev_game_ids_host, &curr_game_ids_host, state, get_game_host) ||
+            {
+                // todo log warning
+                for game_id in curr_game_ids_host {
+                    merge_games(game_id, None, state);
+                }
+                return false;
+            };
+    }
+    true
 }
 
 fn try_merge_host_ids(curr_game_ids_all: &HashSet<GameId>, updater_state: &mut UpdaterState, state: &mut State, time: TimeMinutes) {
@@ -213,50 +249,19 @@ fn try_merge_host_ids(curr_game_ids_all: &HashSet<GameId>, updater_state: &mut U
     let mut scheduled_to_merge_host_ids = HashMap::new();
     for (host_id, merge_info) in updater_state.scheduled_to_merge_host_ids.drain() {
         let mut merged = false;
-        if time.get() - merge_info.time_end.get() > HOST_ID_MERGE_DELAY {
-            let prev_game_ids_host = &merge_info.game_ids;
-            let curr_game_ids_host = curr_game_ids_by_host.get(&host_id);
-            if curr_game_ids_host.is_none() {
-                // новых game_id не появилось: нечего объединять
-                continue;
-            }
-            let curr_game_ids_host = curr_game_ids_host.unwrap();
-
-            // не рассматриваем game_id, которые как были так и остались
-            let prev_game_ids_host: HashSet<GameId> = prev_game_ids_host.iter().copied().collect();
-            let curr_game_ids_host: HashSet<GameId> = curr_game_ids_host.iter().copied().collect();
-            let common_game_ids_host = prev_game_ids_host.intersection(&curr_game_ids_host).copied().collect();
-            let prev_game_ids_host: Vec<GameId> = prev_game_ids_host.difference(&common_game_ids_host).copied().collect();
-            let curr_game_ids_host: Vec<GameId> = curr_game_ids_host.difference(&common_game_ids_host).copied().collect();
-
-            if curr_game_ids_host.len() == 1 && prev_game_ids_host.len() == 1 {
-                merge_games(curr_game_ids_host[0], Some(prev_game_ids_host[0]), state);
-                merged = true;
-            } else if curr_game_ids_host.len() == 1 && prev_game_ids_host.len() == 0 {
-                merge_games(curr_game_ids_host[0], None, state);
-                merged = true;
-            } else {
-                let is_fetched_game_details = |&game_id: &GameId| state.get_game(game_id).host_address.is_some();
-                let fetched_all_games_details = prev_game_ids_host.iter().all(is_fetched_game_details)
-                    && curr_game_ids_host.iter().all(is_fetched_game_details);
-
-                if fetched_all_games_details {
-                    let get_game_name = |&game_id: &GameId, state: &State| state.get_game_name(game_id).into();
-                    let get_game_host = |&game_id: &GameId, state: &State| state.get_game_host(game_id).unwrap().into();
-                    try_merge_by_property(&prev_game_ids_host, &curr_game_ids_host, state, get_game_name) ||
-                        try_merge_by_property(&prev_game_ids_host, &curr_game_ids_host, state, get_game_host) ||
-                        {
-                            // todo log warning
-                            for game_id in curr_game_ids_host {
-                                merge_games(game_id, None, state);
-                            }
-                            false
-                        };
-                    merged = true;
-                }
-            }
+        if time.get() - merge_info.time_end.get() < HOST_ID_MERGE_DELAY {
+            continue;
         }
 
+        let prev_game_ids_host = &merge_info.game_ids;
+        let curr_game_ids_host = curr_game_ids_by_host.get(&host_id);
+        if curr_game_ids_host.is_none() {
+            // новых game_id не появилось: нечего объединять
+            continue;
+        }
+        let curr_game_ids_host = curr_game_ids_host.unwrap();
+
+        let merged = try_merge_host(prev_game_ids_host, curr_game_ids_host, state);
         if !merged {
             scheduled_to_merge_host_ids.insert(host_id, merge_info);
         }

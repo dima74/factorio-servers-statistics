@@ -1,4 +1,4 @@
-#![feature(proc_macro_hygiene, decl_macro)]
+#![feature(proc_macro_hygiene, decl_macro, type_ascription)]
 #![allow(warnings)]
 
 use std::{env, fs, thread};

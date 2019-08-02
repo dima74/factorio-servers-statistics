@@ -63,6 +63,7 @@ pub struct Game {
     pub mods: Option<Vec<Mod>>,
     pub mods_crc: Option<u64>,
     pub steam_id: Option<String>,
+    pub require_user_verification: Option<String>,
 }
 
 pub fn convert_from_string<'de, T, D>(deserializer: D) -> Result<T, D::Error>
@@ -168,7 +169,7 @@ pub fn get_game_details(game_id: u64) -> Result<Option<GetGameDetailsResponse>, 
         Err(_) => reqwest_get_with_retries(&api_url, 4)?,
     };
 
-    let mut game: Game = serde_json::from_str(&response)?;
+    let mut game: Game = serde_json::from_str(&response).unwrap();
     check_response(&game, false);
     game.mods.as_mut().unwrap().retain(|mod_| mod_.name != "base");
     Ok(Some(game))

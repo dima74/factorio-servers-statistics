@@ -116,6 +116,10 @@ impl Game {
             .unwrap_or(0);
         self.players_intervals.len() - first_online_player_index
     }
+
+    pub fn are_details_fetched(&self) -> bool {
+        self.host_address.is_some()
+    }
 }
 
 pub type StateLock = Arc<RwLock<State>>;

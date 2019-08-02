@@ -51,7 +51,8 @@ impl Into<api::Game> for Game {
             host_address: None,
             mods: None,
             mods_crc: None,
-            steam_id: None
+            steam_id: None,
+            require_user_verification: None,
         }
     }
 }

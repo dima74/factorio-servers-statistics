@@ -63,12 +63,10 @@ fn convert_game(game: &state::Game, state: &State) -> Game {
         game_version: state.all_versions.get(game.game_version).into(),
         game_time_elapsed: game.game_time_elapsed,
         has_password: game.has_password,
-//        tags: state.all_tags.get(game.tags).into().split("\n"),
-        // todo
-        tags: vec![],
+        tags: (state.all_tags.get(game.tags).into(): &str)
+            .split("\n").to_owned().map(ToOwned::to_owned).collect(),
         mod_count: game.mod_count,
         host_address: state.all_host_addresses.get(game.host_address.unwrap()).into(),
-//        host_address: "todo".to_owned(),
         // todo
         mods: None,
     }
