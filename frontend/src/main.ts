@@ -4,8 +4,15 @@ import router from './router';
 import store from './store';
 import vuetify from './plugins/vuetify';
 import './plugins/axios';
+import { transformRichText } from '@/misc/richText';
 
 Vue.config.productionTip = false;
+
+Vue.mixin({
+  methods: {
+    transformRichText,
+  },
+});
 
 new Vue({
   router,

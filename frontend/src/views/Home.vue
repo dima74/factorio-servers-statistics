@@ -5,10 +5,15 @@
         autofocus
         solo
         auto-select-first
+        autocomplete="off"
         placeholder="Server name"
         v-model="server"
         :items="servers"
-      />
+      >
+        <template #item="{ item }">
+          <span class="rich-text" v-html="transformRichText(item.text)"></span>
+        </template>
+      </v-autocomplete>
     </v-flex>
     <v-progress-circular
       v-else

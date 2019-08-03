@@ -19,6 +19,11 @@
   a {
     text-decoration: none !important;
   }
+
+  .rich-text img {
+    vertical-align: middle;
+    margin: 0 0.4vw;
+  }
 </style>
 
 <script>
