@@ -1,5 +1,4 @@
-use std::borrow::Borrow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -110,7 +109,7 @@ pub struct Game {
 
 impl Game {
     pub fn number_players(&self) -> usize {
-        let mut first_online_player_index = self.players_intervals.iter()
+        let first_online_player_index = self.players_intervals.iter()
             .rposition(|player_interval| player_interval.end.is_some())
             .map(|index| index + 1)
             .unwrap_or(0);

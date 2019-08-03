@@ -114,7 +114,7 @@ fn reqwest_get_with_retries(url: &str, number_retries: usize) -> Result<String, 
             response @ Ok(_) => return response,
             Err(response) => {
                 eprintln!("[error] [api] request failed (retry_index = {}):\n\turl: {}\n\terror message: {}", request_index, url, response);
-                std::thread::sleep(Duration::from_secs(request_index as u64));
+                std::thread::sleep(Duration::from_secs(f32::powf(1.5, request_index as f32) as u64));
 
                 if request_index + 1 == number_retries {
                     return Err(response);
@@ -152,7 +152,7 @@ pub fn clean_get_games_response(games: &mut Vec<Game>) {
 
 // Ok(None) означает ошибку 404
 fn reqwest_get_and_check_for_404(url: &str) -> Result<Option<String>, Box<dyn Error>> {
-    let mut response = reqwest::get(url)?;
+    let response = reqwest::get(url)?;
     if response.status() == StatusCode::NOT_FOUND {
         return Ok(None);
     }
@@ -196,7 +196,7 @@ pub fn get_game_details_cached(game_id: u64, api_url: &str) -> Result<Option<Str
         let response = reqwest_get_and_check_for_404(&api_url);
         if let Ok(ref response) = response {
             let content = response.as_deref().unwrap_or("");
-            fs::write(path, content);
+            fs::write(path, content).unwrap();
         }
         response
     }

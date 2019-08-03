@@ -1,8 +1,20 @@
-use crate::state::State;
+#![allow(warnings)]
 
-pub fn analytics(state: State) {
+use crate::external_storage::WholeState;
+
+pub fn analytics(whole_state: WholeState) {
+    let state = whole_state.state;
+    let updater_state = whole_state.updater_state;
+
     println!("число наблюдаемых game_id: {}", state.games.len());
     println!("число наблюдаемых серверов: {}", state.game_ids.len());
+    println!("scheduled_to_merge_host_ids.len(): {}", updater_state.scheduled_to_merge_host_ids.len());
+    println!("game_ids_in_last_get_games_response.len(): {}", state.current_game_ids.len());
+
+    println!("Игр с полученными details: {}",
+             state.games.values().filter(|game| game.are_details_fetched()).count());
+    println!("Игр с prev_game_id != None: {}",
+             state.games.values().filter(|game| game.prev_game_id.is_some()).count());
 
     {
 //        let game_id = state.current_game_ids.iter()

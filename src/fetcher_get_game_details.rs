@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::api;
 use crate::global_config::GLOBAL_CONFIG;
-use crate::state::{GameId, Mod, StateLock, TimeMinutes};
+use crate::state::{GameId, Mod, StateLock};
 
 #[derive(Serialize, Deserialize)]
 pub struct State {
@@ -27,6 +27,10 @@ pub fn fetcher(receiver: mpsc::Receiver<GameId>, fetcher_state_lock: Arc<RwLock<
         // если game_ids не пусто, то неблокирующе получаем все game_id из mpsc, затем обрабатываем один /get-game-details
         let number_game_ids = fetcher_state_lock.read().game_ids.len();
         if number_game_ids == 0 {
+            if iteration != 0 && GLOBAL_CONFIG.lock().unwrap().fetcher_get_game_details_exit_after_fetch_all {
+                break;
+            }
+
             let game_id = receiver.recv().unwrap();
             fetcher_state_lock.write().game_ids.push_back(game_id);
         } else {
@@ -34,7 +38,12 @@ pub fn fetcher(receiver: mpsc::Receiver<GameId>, fetcher_state_lock: Arc<RwLock<
                 match receiver.try_recv() {
                     Ok(game_id) => fetcher_state_lock.write().game_ids.push_back(game_id),
                     Err(TryRecvError::Empty) => break,
-                    Err(TryRecvError::Disconnected) => panic!("[error] [fetcher_get_game_details] channel disconnected"),
+                    Err(TryRecvError::Disconnected) => {
+                        if GLOBAL_CONFIG.lock().unwrap().fetcher_get_game_details_exit_after_fetch_all {
+                            break;
+                        }
+                        panic!("[error] [fetcher_get_game_details] channel disconnected")
+                    }
                 }
             }
 

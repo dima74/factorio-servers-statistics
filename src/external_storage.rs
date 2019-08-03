@@ -4,7 +4,6 @@ use std::num::NonZeroU32;
 use std::sync::{Arc, mpsc};
 
 use parking_lot::RwLock;
-use serde::{Deserialize, Serialize};
 use xz2::read::XzDecoder;
 use xz2::write::XzEncoder;
 
@@ -21,7 +20,6 @@ pub struct WholeState {
 
 pub fn get_empty_state() -> WholeState {
     let updater_state = UpdaterState {
-        game_ids_in_last_get_games_response: vec![],
         scheduled_to_merge_host_ids: HashMap::new(),
     };
 
@@ -58,7 +56,7 @@ pub fn fetch_state() -> WholeState {
 
 pub fn load_state_from_file(filename: &str) -> WholeState {
     let mut reader = File::open(filename).unwrap();
-    let mut reader = XzDecoder::new(&mut reader);
+    let reader = XzDecoder::new(&mut reader);
 
 //    serde_json::from_reader(reader).unwrap()
     let (updater_state, state, fetcher_get_game_details_state) = bincode::deserialize_from(reader).unwrap();
@@ -80,12 +78,13 @@ pub fn save_state_to_file(
     let data = (updater_state, state, fetcher_get_game_details_state);
 
     let mut writer = File::create(filename).unwrap();
-    let mut writer = XzEncoder::new(&mut writer, 9);
+    let writer = XzEncoder::new(&mut writer, 9);
 
 //    serde_json::to_writer(&mut writer, &data).unwrap();
     bincode::serialize_into(writer, &data).unwrap();
 }
 
+#[allow(warnings)]
 pub fn save_state(
     updater_state: &UpdaterState,
     state: &State,

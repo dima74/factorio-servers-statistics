@@ -1,6 +1,4 @@
 #![feature(proc_macro_hygiene, decl_macro, type_ascription)]
-// todo
-#![allow(warnings)]
 
 use std::{fs, thread};
 use std::path::Path;
@@ -15,11 +13,12 @@ use parking_lot::RwLock;
 use fss::{analytics, external_storage, fetcher_get_game_details, fetcher_get_games, fetcher_get_games_offline, state};
 use fss::external_storage::SaverEvent;
 use fss::global_config::GLOBAL_CONFIG;
+use fss::state::{TimeMinutes, updater};
 
 mod server;
 
-//const DEBUG_STATE_FILE: &str = "temp-state/2880/state.bin.xz";
-const DEBUG_STATE_FILE: &str = "temp-state-online/60/state.bin.xz";
+const DEBUG_STATE_FILE: &str = "temp/state-offline/60/state.bin.xz";
+//const DEBUG_STATE_FILE: &str = "temp/state-online/60/state.bin.xz";
 
 fn main() {
     let arguments = App::new("Factorio servers statistics")
@@ -43,6 +42,7 @@ fn main() {
         }
         "debug_updater" => debug_updater(),
         "create_state_from_saved_data" => {
+            GLOBAL_CONFIG.lock().unwrap().fetcher_get_game_details_exit_after_fetch_all = true;
             let number_responses = value_t!(arguments, "number_responses", u32).unwrap_or_else(|e| e.exit());
             create_state_from_saved_data(number_responses);
         }
@@ -145,7 +145,7 @@ fn run_web_server() {
 
 fn run_analytics() {
     let whole_state = external_storage::load_state_from_file(DEBUG_STATE_FILE);
-    analytics::analytics(whole_state.state);
+    analytics::analytics(whole_state);
 }
 
 fn debug_fetcher_get_games() {
@@ -201,9 +201,11 @@ fn debug_updater() {
 }
 
 fn create_state_from_saved_data(number_responses: u32) {
+    assert!(number_responses <= 2880);
+
     // fetcher_get_games
-    let (sender, receiver) = mpsc::channel();
-    let fetcher_thread = spawn_thread_with_name("fetcher_get_games", move || fetcher_get_games_offline::fetcher(sender, number_responses));
+    let (sender_fetcher_get_games, receiver_fetcher_get_games) = mpsc::channel();
+    fetcher_get_games_offline::fetcher(sender_fetcher_get_games, number_responses);
 
     // state
     let whole_state = external_storage::get_empty_state();
@@ -211,22 +213,28 @@ fn create_state_from_saved_data(number_responses: u32) {
     let state_lock = Arc::new(RwLock::new(whole_state.state));
     let fetcher_get_game_details_state_lock = Arc::new(RwLock::new(whole_state.fetcher_get_game_details_state));
 
-    let (sender_fetcher_get_game_details, _receiver_fetcher_get_game_details) = mpsc::channel();
+    let (sender_fetcher_get_game_details, receiver_fetcher_get_game_details) = mpsc::channel();
 
     // updater
-    let updater_thread = {
+    {
         let state_lock = state_lock.clone();
         let updater_state_lock = updater_state_lock.clone();
-        spawn_thread_with_name("updater", move || state::updater::updater(updater_state_lock, state_lock, receiver, sender_fetcher_get_game_details))
-    };
+        state::updater::updater(updater_state_lock, state_lock, receiver_fetcher_get_games, sender_fetcher_get_game_details);
+    }
 
-    fetcher_thread.join().unwrap();
-    updater_thread.join().unwrap();
+    // fetcher_get_game_details
+    {
+        let state_lock = state_lock.clone();
+        let fetcher_get_game_details_state_lock = fetcher_get_game_details_state_lock.clone();
+        fetcher_get_game_details::fetcher(receiver_fetcher_get_game_details, fetcher_get_game_details_state_lock, state_lock);
+    }
 
-    let updater_state = updater_state_lock.read();
-    let state = state_lock.read();
+    let mut updater_state = updater_state_lock.write();
+    let mut state = state_lock.write();
+    updater::try_merge_host_ids(&mut updater_state, &mut state, TimeMinutes::new(number_responses as u32 + 1).unwrap());
+
     let fetcher_get_game_details_state = fetcher_get_game_details_state_lock.read();
-    let filename = format!("temp-state/{}/state.bin.xz", number_responses);
+    let filename = format!("temp/state-offline/{}/state.bin.xz", number_responses);
     fs::create_dir_all(Path::new(&filename).parent().unwrap()).unwrap();
     external_storage::save_state_to_file(&updater_state, &state, &fetcher_get_game_details_state, &filename);
 }
@@ -262,7 +270,7 @@ fn create_state(number_responses: u32) {
     let updater_state = updater_state_lock.read();
     let state = state_lock.read();
     let fetcher_get_game_details_state = fetcher_get_game_details_state_lock.read();
-    let filename = format!("temp-state-online/{}/state.bin.xz", number_responses);
+    let filename = format!("temp/state-online/{}/state.bin.xz", number_responses);
     fs::create_dir_all(Path::new(&filename).parent().unwrap()).unwrap();
     external_storage::save_state_to_file(&updater_state, &state, &fetcher_get_game_details_state, &filename);
 }
