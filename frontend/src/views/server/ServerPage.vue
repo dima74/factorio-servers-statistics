@@ -5,7 +5,10 @@
       class="headline text-center mb-3 rich-text"
       v-html="transformRichText(lastGame.name)"
     ></h1>
-    <h2 class="subtitle-1 text-center">{{ lastGame.description }}</h2>
+    <h2
+      class="subtitle-1 text-center"
+      v-html="transformRichText(lastGame.description)"
+    ></h2>
     <v-layout>
       <players-list
         :lastGame="lastGame"

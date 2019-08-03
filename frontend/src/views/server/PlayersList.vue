@@ -39,7 +39,7 @@
         if (duration <= 1) {
           return '1 minute';
         }
-        if (duration < 60) {
+        if (duration < 90) {
           return `${Math.round(duration)} minutes`;
         }
 

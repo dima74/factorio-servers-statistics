@@ -17,8 +17,9 @@ export default class Plot {
     // assert(end - begin >= 24 * 60);
     assert(width >= 100);
 
+    // [begin, end)
     this.begin = begin;
-    this.end = end + 1;  // +1 чтобы сделать интервал [begin, end)
+    this.end = end;
     this.playersIntervals = this.extractIntervals(games);
 
     // разбиваем интервал [begin, end) на width частей
@@ -52,11 +53,11 @@ export default class Plot {
       const timeBegin = Math.max(playerInterval.begin, this.begin) - this.begin;
       const timeEnd = Math.min(playerInterval.end, this.end) - this.begin;
       let partBegin = timeBegin / this.partDuration;
-      let partEnd = timeEnd / this.partDuration;
+      let partEnd = Math.min(timeEnd / this.partDuration, this.numberParts - 1);
       assert(0 <= partBegin && partBegin < this.numberParts);
       assert(0 <= partEnd && partEnd < this.numberParts);
       assert(partBegin <= partEnd);
-
+      // [partBegin, partEnd]
 
       if (!Number.isInteger(partBegin)) {
         const partBeginInteger = Math.floor(partBegin);
@@ -74,14 +75,13 @@ export default class Plot {
           this.partsPlayerList[partEndInteger].push(playerInterval);
           this.partsPlayerCount[partEndInteger] += partEnd - partEndInteger;
         }
-        partEnd = Math.floor(partEnd);
+        partEnd = Math.floor(partEnd) - 1;
       }
 
-      for (let partIndex = partBegin; partIndex < partEnd; ++partIndex) {
+      for (let partIndex = partBegin; partIndex <= partEnd; ++partIndex) {
         this.partsPlayerList[partIndex].push(playerInterval);
         this.partsPlayerCount[partIndex] += 1;
       }
-      // console.log(this.partsPlayerList);
     }
 
     if (process.env.NODE_ENV === 'development') {
