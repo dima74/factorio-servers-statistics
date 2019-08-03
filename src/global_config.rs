@@ -8,12 +8,14 @@ lazy_static! {
 
 pub struct GlobalConfig {
     pub fetcher_get_games_skip_first_sleep: bool,
+    pub use_cache_for_get_game_details: bool,
 }
 
 impl GlobalConfig {
     fn new() -> GlobalConfig {
         GlobalConfig {
-            fetcher_get_games_skip_first_sleep: false
+            fetcher_get_games_skip_first_sleep: false,
+            use_cache_for_get_game_details: false,
         }
     }
 }

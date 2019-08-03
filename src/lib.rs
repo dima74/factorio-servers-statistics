@@ -1,5 +1,6 @@
 #![feature(duration_constants)]
 #![feature(duration_float)]
+#![feature(inner_deref)]
 // todo
 #![allow(warnings)]
 

@@ -9,6 +9,7 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use crate::api;
+use crate::global_config::GLOBAL_CONFIG;
 use crate::state::{GameId, Mod, StateLock, TimeMinutes};
 
 #[derive(Serialize, Deserialize)]
@@ -18,7 +19,9 @@ pub struct State {
 
 pub fn fetcher(receiver: mpsc::Receiver<GameId>, fetcher_state_lock: Arc<RwLock<State>>, state_lock: StateLock) {
     for iteration in 0.. {
-        thread::sleep(Duration::SECOND);
+        if !GLOBAL_CONFIG.lock().unwrap().use_cache_for_get_game_details {
+            thread::sleep(Duration::SECOND);
+        }
 
         // если game_ids пусто, то блокирующе получаем один game_id из mpsc
         // если game_ids не пусто, то неблокирующе получаем все game_id из mpsc, затем обрабатываем один /get-game-details

@@ -1,12 +1,14 @@
 use std::{env, fmt, fs};
 use std::error::Error;
 use std::num::NonZeroU32;
+use std::path::PathBuf;
 use std::str::FromStr;
+use std::time::Duration;
 
+use reqwest::StatusCode;
 use serde::{de, Deserialize, Serialize};
 
-use crate::state::TimeMinutes;
-use reqwest::StatusCode;
+use crate::global_config::GLOBAL_CONFIG;
 
 pub type GetGamesResponse = Vec<Game>;
 pub type GetGameDetailsResponse = Game;
@@ -112,6 +114,7 @@ fn reqwest_get_with_retries(url: &str, number_retries: usize) -> Result<String, 
             response @ Ok(_) => return response,
             Err(response) => {
                 eprintln!("[error] [api] request failed (retry_index = {}):\n\turl: {}\n\terror message: {}", request_index, url, response);
+                std::thread::sleep(Duration::from_secs(request_index as u64));
 
                 if request_index + 1 == number_retries {
                     return Err(response);
@@ -162,7 +165,12 @@ fn reqwest_get_and_check_for_404(url: &str) -> Result<Option<String>, Box<dyn Er
 pub fn get_game_details(game_id: u64) -> Result<Option<GetGameDetailsResponse>, Box<dyn Error>> {
     let api_url: String = format!("{}/get-game-details/{}", API_BASE_URL, game_id);
 
-    let response = reqwest_get_and_check_for_404(&api_url);
+    // todo: && cfg!(not(debug_assertions))
+    let response = if !GLOBAL_CONFIG.lock().unwrap().use_cache_for_get_game_details {
+        reqwest_get_and_check_for_404(&api_url)
+    } else {
+        get_game_details_cached(game_id, &api_url)
+    };
     let response = match response {
         Ok(None) => return Ok(None),
         Ok(Some(response)) => response,
@@ -173,4 +181,23 @@ pub fn get_game_details(game_id: u64) -> Result<Option<GetGameDetailsResponse>, 
     check_response(&game, false);
     game.mods.as_mut().unwrap().retain(|mod_| mod_.name != "base");
     Ok(Some(game))
+}
+
+pub fn get_game_details_cached(game_id: u64, api_url: &str) -> Result<Option<String>, Box<dyn Error>> {
+    let path = PathBuf::from(format!("temp/cache-get-game-details/{}.json", game_id));
+    if path.exists() {
+        let response = fs::read_to_string(path).unwrap();
+        if response.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(response))
+        }
+    } else {
+        let response = reqwest_get_and_check_for_404(&api_url);
+        if let Ok(ref response) = response {
+            let content = response.as_deref().unwrap_or("");
+            fs::write(path, content);
+        }
+        response
+    }
 }

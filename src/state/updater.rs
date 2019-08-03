@@ -296,7 +296,10 @@ pub fn updater(
     receiver_fetcher_get_games: mpsc::Receiver<FetcherOutput>,
     sender_fetcher_get_game_details: mpsc::Sender<GameId>,
 ) {
-    for (get_games_response, time) in receiver_fetcher_get_games {
+    for (mut get_games_response, time) in receiver_fetcher_get_games {
+        // для fetcher_get_game_details, чтобы кеширование лучше работало
+        get_games_response.sort_by_key(|game| game.game_id);
+
         let mut updater_state = updater_state_lock.write();
         let mut state = state_lock.write();
         for game_snapshot in &get_games_response {

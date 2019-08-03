@@ -1,11 +1,6 @@
-use std::sync::Arc;
-
-use parking_lot::RwLock;
 use rocket::routes;
 
 use fss::state::StateLock;
-
-use crate::state::State;
 
 mod routes;
 mod cors;

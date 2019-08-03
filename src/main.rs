@@ -1,15 +1,15 @@
 #![feature(proc_macro_hygiene, decl_macro, type_ascription)]
+// todo
 #![allow(warnings)]
 
-use std::{env, fs, thread};
-use std::error::Error;
+use std::{fs, thread};
 use std::path::Path;
 use std::sync::{Arc, mpsc};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use clap::{App, Arg, value_t};
+use clap::{App, value_t};
 use parking_lot::RwLock;
 
 use fss::{analytics, external_storage, fetcher_get_game_details, fetcher_get_games, fetcher_get_games_offline, state};
@@ -26,8 +26,13 @@ fn main() {
         .arg_from_usage("<TYPE>")
         .arg_from_usage("--number_responses [val], 'only for TYPE = create_state_from_saved_data or create_state'")
         .get_matches();
+    let pipeline = arguments.value_of("TYPE").unwrap();
 
-    match arguments.value_of("TYPE").unwrap() {
+    if pipeline != "production" {
+        GLOBAL_CONFIG.lock().unwrap().use_cache_for_get_game_details = true;
+    }
+
+    match pipeline {
         "production" => run_production_pipeline(),
         "web_server" => run_web_server(),
         "analytics" => run_analytics(),
@@ -144,7 +149,7 @@ fn run_analytics() {
 }
 
 fn debug_fetcher_get_games() {
-    let (sender, receiver) = mpsc::channel();
+    let (sender, _receiver) = mpsc::channel();
     let fetcher_thread = spawn_thread_with_name("fetcher_get_games", move || fetcher_get_games::fetcher(sender));
     fetcher_thread.join().unwrap()
 }
@@ -186,7 +191,7 @@ fn debug_updater() {
     let updater_state_lock = Arc::new(RwLock::new(whole_state.updater_state));
     let state_lock = Arc::new(RwLock::new(whole_state.state));
 
-    let (sender_fetcher_get_game_details, receiver_fetcher_get_game_details) = mpsc::channel();
+    let (sender_fetcher_get_game_details, _receiver_fetcher_get_game_details) = mpsc::channel();
 
     // updater
     let updater_thread = spawn_thread_with_name("updater", move || state::updater::updater(updater_state_lock, state_lock, receiver_fetcher_get_games, sender_fetcher_get_game_details));
@@ -206,7 +211,7 @@ fn create_state_from_saved_data(number_responses: u32) {
     let state_lock = Arc::new(RwLock::new(whole_state.state));
     let fetcher_get_game_details_state_lock = Arc::new(RwLock::new(whole_state.fetcher_get_game_details_state));
 
-    let (sender_fetcher_get_game_details, receiver_fetcher_get_game_details) = mpsc::channel();
+    let (sender_fetcher_get_game_details, _receiver_fetcher_get_game_details) = mpsc::channel();
 
     // updater
     let updater_thread = {
@@ -222,7 +227,7 @@ fn create_state_from_saved_data(number_responses: u32) {
     let state = state_lock.read();
     let fetcher_get_game_details_state = fetcher_get_game_details_state_lock.read();
     let filename = format!("temp-state/{}/state.bin.xz", number_responses);
-    fs::create_dir_all(Path::new(&filename).parent().unwrap());
+    fs::create_dir_all(Path::new(&filename).parent().unwrap()).unwrap();
     external_storage::save_state_to_file(&updater_state, &state, &fetcher_get_game_details_state, &filename);
 }
 
@@ -258,7 +263,7 @@ fn create_state(number_responses: u32) {
     let state = state_lock.read();
     let fetcher_get_game_details_state = fetcher_get_game_details_state_lock.read();
     let filename = format!("temp-state-online/{}/state.bin.xz", number_responses);
-    fs::create_dir_all(Path::new(&filename).parent().unwrap());
+    fs::create_dir_all(Path::new(&filename).parent().unwrap()).unwrap();
     external_storage::save_state_to_file(&updater_state, &state, &fetcher_get_game_details_state, &filename);
 }
 
