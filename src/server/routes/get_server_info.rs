@@ -4,7 +4,6 @@ use serde::Serialize;
 
 use fss::state::{GameId, ServerId, State, StateLock, TimeMinutes};
 use fss::state;
-use std::num::NonZeroU32;
 
 #[derive(Serialize)]
 pub struct Server {
@@ -82,12 +81,13 @@ fn convert_game(game: &state::Game, state: &State) -> Game {
 
 #[get("/server/<id>")]
 //pub fn get_server_info(id: ServerId, state_lock: rocket::State<StateLock>) -> Option<Json<Server>> {
-pub fn get_server_info(id: u32, state_lock: rocket::State<StateLock>) -> Option<Json<Server>> {
-    //todo update rocket
-    let id: ServerId = NonZeroU32::new(id).unwrap();
-
+pub fn get_server_info(id: usize, state_lock: rocket::State<StateLock>) -> Option<Json<Server>> {
     let state = state_lock.read();
-    let game_id = state.get_server_last_game_id(id)?;
+
+    //todo update rocket
+    let id: ServerId = state.as_server_id(id)?;
+
+    let game_id = state.get_server_last_game_id(id);
     let mut games = vec![state.get_game(game_id).clone()];
     while let Some(game_id) = games.last().unwrap().prev_game_id {
         let game = state.get_game(game_id);

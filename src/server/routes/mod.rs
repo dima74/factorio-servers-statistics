@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
-use rocket::get;
+use rocket::{get, State};
 use rocket_contrib::json::Json;
 use serde::Serialize;
 
 use fss::state::{ServerId, StateLock};
 
 pub mod get_server_info;
+pub mod main_page;
+pub mod util;
 
 #[get("/")]
 pub fn index() -> &'static str {
@@ -22,7 +24,7 @@ pub struct SearchIndex {
 }
 
 #[get("/servers_search_index")]
-pub fn servers_search_index(state_lock: rocket::State<StateLock>) -> Json<SearchIndex> {
+pub fn servers_search_index(state_lock: State<StateLock>) -> Json<SearchIndex> {
     let state = state_lock.read();
     let servers = state.current_game_ids.iter().filter_map(|&game_id| {
         let game = state.get_game(game_id);
@@ -31,4 +33,3 @@ pub fn servers_search_index(state_lock: rocket::State<StateLock>) -> Json<Search
     }).collect();
     Json(SearchIndex { servers })
 }
-

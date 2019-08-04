@@ -19,6 +19,10 @@
     right: 0;
   }
 
+  >>> svg text {
+    fill: white;
+  }
+
   >>> .line {
     fill: none;
     stroke: #ffab00;
@@ -32,7 +36,7 @@
   }
 
   >>> .cursor-vertical-line {
-    stroke: #00000028;
+    stroke: #ffffffd7;
     stroke-width: 2;
   }
 </style>

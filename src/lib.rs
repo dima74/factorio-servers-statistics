@@ -1,6 +1,7 @@
 #![feature(duration_constants)]
 #![feature(duration_float)]
 #![feature(inner_deref)]
+#![feature(slice_partition_at_index)]
 
 pub mod api;
 pub mod external_storage;
@@ -11,3 +12,4 @@ pub mod state;
 pub mod util;
 pub mod analytics;
 pub mod global_config;
+pub mod cacher;

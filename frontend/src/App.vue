@@ -2,7 +2,7 @@
   <v-app>
     <v-app-bar app dark color="primary">
       <v-toolbar-title class="headline text-uppercase">
-        <router-link to="/" class="white--text">Factorio Servers Statistics</router-link>
+        <router-link to="/" class="logo white--text">Factorio Servers Statistics</router-link>
       </v-toolbar-title>
       <v-spacer></v-spacer>
     </v-app-bar>
@@ -15,14 +15,34 @@
   </v-app>
 </template>
 
+<style scoped>
+  .container {
+    padding: 24px;
+  }
+
+  .logo {
+    text-decoration: none;
+  }
+</style>
+
 <style>
-  a {
+  html {
+    overflow-y: auto !important;
+  }
+
+  a:not(:hover) {
     text-decoration: none !important;
   }
 
   .rich-text img {
+    margin: 0 0.5vw;
+    display: inline-block;
     vertical-align: middle;
-    margin: 0 0.4vw;
+  }
+
+  .rich-text {
+    display: flex;
+    align-items: center;
   }
 </style>
 

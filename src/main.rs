@@ -10,10 +10,10 @@ use std::time::Duration;
 use clap::{App, value_t};
 use parking_lot::RwLock;
 
-use fss::{analytics, external_storage, fetcher_get_game_details, fetcher_get_games, fetcher_get_games_offline, state};
+use fss::{analytics, cacher, external_storage, fetcher_get_game_details, fetcher_get_games, fetcher_get_games_offline, state};
 use fss::external_storage::SaverEvent;
 use fss::global_config::GLOBAL_CONFIG;
-use fss::state::{TimeMinutes, updater};
+use fss::state::{StateLock, TimeMinutes, updater};
 
 mod server;
 
@@ -77,6 +77,19 @@ fn regular_saver_notifier(sender: mpsc::Sender<SaverEvent>) {
     println!("[info]  [regular_saver_notifier] exit");
 }
 
+fn init_server_with_cacher(state_lock: StateLock) {
+    let cacher_state = cacher::CacherState::new();
+    let cacher_state_lock = Arc::new(RwLock::new(cacher_state));
+
+    {
+        let state_lock = state_lock.clone();
+        let cacher_state_lock = cacher_state_lock.clone();
+        spawn_thread_with_name("cache", move || cacher::cacher(cacher_state_lock, state_lock));
+    }
+
+    server::init(state_lock, cacher_state_lock);
+}
+
 fn run_production_pipeline() {
     // todo убедиться что capacity(channel) == infinity, чтобы fetcher не блокировался на время подготовки данных для updater
     // fetcher_get_games
@@ -134,13 +147,13 @@ fn run_production_pipeline() {
         }).expect("Error setting SIGINT handler");
     }
 
-    server::init(state_lock);
+    init_server_with_cacher(state_lock);
 }
 
 fn run_web_server() {
     let whole_state = external_storage::load_state_from_file(DEBUG_STATE_FILE);
     let state_lock = Arc::new(RwLock::new(whole_state.state));
-    server::init(state_lock);
+    init_server_with_cacher(state_lock);
 }
 
 fn run_analytics() {

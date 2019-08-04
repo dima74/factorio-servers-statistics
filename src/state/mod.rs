@@ -38,9 +38,15 @@ impl TimeMinutes {
 }
 
 pub type GameId = NonZeroU32;
-pub type ServerId = NonZeroU32;
+
 // == base64decode(поле server_id в json)
 pub type HostId = [u8; 32];
+
+/// будем использовать собственную нумерацию серверов, обозначаемую ServerId
+/// ServerId — индекс для массива game.game_ids
+/// `game_ids[ServerId]` — последний game_id этого сервера (такой что .next_game_id == None)
+#[derive(Copy, Clone, Serialize, Deserialize)]
+pub struct ServerId(NonZeroU32);
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -127,9 +133,7 @@ pub type StateLock = Arc<RwLock<State>>;
 #[serde(rename_all = "camelCase")]
 pub struct State {
     pub games: HashMap<GameId, Game>,
-    // будем использовать собственную нумерацию серверов, обозначаемую ServerId
-    // ServerId — индекс для массива game_ids
-    // game_ids[ServerId] — последний game_id этого сервера (такой что .next_game_id == None)
+    // индексы — ServerId
     pub game_ids: Vec<GameId>,
     // game_id из last_get_games_response
     pub current_game_ids: Vec<GameId>,
@@ -157,8 +161,16 @@ impl State {
         self.all_game_names.get(game.name)
     }
 
-    pub fn get_server_last_game_id(&self, id: ServerId) -> Option<GameId> {
-        self.game_ids.get(id.get() as usize).copied()
+    pub fn as_server_id(&self, id: usize) -> Option<ServerId> {
+        if 1 <= id && id < self.game_ids.len() {
+            Some(ServerId(NonZeroU32::new(id as u32).unwrap()))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_server_last_game_id(&self, id: ServerId) -> GameId {
+        self.game_ids[id.0.get() as usize].clone()
     }
 
     fn get_game_host(&self, id: GameId) -> Option<FssStr> {
@@ -216,5 +228,6 @@ mod tests {
     #[test]
     fn sizes() {
         assert_eq!(std::mem::size_of::<PlayerInterval>(), 12);
+        assert_eq!(std::mem::size_of::<Option<ServerId>>(), 4);
     }
 }

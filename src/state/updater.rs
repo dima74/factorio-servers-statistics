@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::iter::FromIterator;
-use std::num::NonZeroU32;
 use std::ops::Deref;
 use std::sync::{Arc, mpsc};
 
@@ -163,7 +162,7 @@ fn merge_games(curr_game_id: GameId, prev_game_id: Option<GameId>, state: &mut S
         server_id
     };
 
-    let server_id = NonZeroU32::new(server_id as u32).unwrap();
+    let server_id = state.as_server_id(server_id).unwrap();
     state.get_game_mut(curr_game_id).server_id = Some(server_id);
 }
 

@@ -7,4 +7,12 @@ export default new Vuetify({
   icons: {
     iconfont: 'mdi',
   },
+  theme: {
+    dark: true,
+    themes: {
+      dark: {
+        primary: '#ff9f1c',
+      },
+    }
+  },
 });
