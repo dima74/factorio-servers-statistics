@@ -38,11 +38,12 @@ pub struct Game {
     pub mods: Option<Vec<(String, String)>>,
 }
 
-fn convert_game(game: &state::Game, state: &State) -> Game {
+fn convert_game(game: &state::Game, state: &State, time_begin: TimeMinutes, time_end: TimeMinutes) -> Game {
     let players_intervals = game.players_intervals.iter()
+        .filter(|interval| !(interval.end.unwrap_or(time_end) <= time_begin || time_end <= interval.begin))
         .map(|interval| {
             let player_name = state.all_player_names.get(interval.player_index);
-            (player_name.into(), interval.start, interval.end)
+            (player_name.into(), interval.begin, interval.end)
         }).collect();
 
     Game {
@@ -79,29 +80,26 @@ fn convert_game(game: &state::Game, state: &State) -> Game {
 //    }
 //}
 
-#[get("/server/<id>")]
-//pub fn get_server_info(id: ServerId, state_lock: rocket::State<StateLock>) -> Option<Json<Server>> {
-pub fn get_server_info(id: usize, state_lock: rocket::State<StateLock>) -> Option<Json<Server>> {
+#[get("/server/<server_id>?<time_begin>&<time_end>")]
+//pub fn get_server_info(server_id: ServerId, state_lock: rocket::State<StateLock>) -> Option<Json<Server>> {
+pub fn get_server_info(
+    server_id: usize,
+    time_begin: u32,
+    time_end: u32,
+    state_lock: rocket::State<StateLock>,
+) -> Option<Json<Server>> {
     let state = state_lock.read();
 
-    //todo update rocket
-    let id: ServerId = state.as_server_id(id)?;
+    // todo update rocket
+    let server_id: ServerId = state.as_server_id(server_id)?;
+    let time_begin = TimeMinutes::new(time_begin)?;
+    let time_end = TimeMinutes::new(time_end)?;
 
-    let game_id = state.get_server_last_game_id(id);
-    let mut games = vec![state.get_game(game_id).clone()];
-    while let Some(game_id) = games.last().unwrap().prev_game_id {
-        let game = state.get_game(game_id);
-        if TimeMinutes::now().get() - game.time_end.unwrap().get() > TimeMinutes::WEEK {
-            break;
-        }
-        games.push(game.clone());
-    }
-
-    let games = games.iter()
-        .map(|game| convert_game(game, &state))
+    let game_ids = state.get_server_games_in_interval(server_id, time_begin, time_end);
+    let games = game_ids.into_iter()
+        .map(|game_id| convert_game(state.get_game(game_id), &state, time_begin, time_end))
         .collect();
 
-//    games.reverse();
     // todo посмотреть на типичный размер json, кажется метаинформация занимает очень много
     Some(Json(Server { games }))
 }

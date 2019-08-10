@@ -126,8 +126,10 @@ fn reqwest_get_with_retries(url: &str, number_retries: usize) -> Result<String, 
 }
 
 pub fn get_games() -> GetGamesResponse {
-    let factorio_username: String = env::var("FACTORIO_USERNAME").unwrap();
-    let factorio_token: String = env::var("FACTORIO_TOKEN").unwrap();
+    let factorio_username: String = env::var("FACTORIO_USERNAME")
+        .expect("Missing FACTORIO_USERNAME env variable");
+    let factorio_token: String = env::var("FACTORIO_TOKEN")
+        .expect("Missing FACTORIO_TOKEN env variable");
     let api_url: String = format!("{}/get-games?username={}&token={}", API_BASE_URL, factorio_username, factorio_token);
 
     let response = if !MOCK_API {

@@ -15,19 +15,21 @@ pub fn analytics(whole_state: WholeState) {
              state.games.values().filter(|game| game.are_details_fetched()).count());
     println!("Игр с prev_game_id != None: {}",
              state.games.values().filter(|game| game.prev_game_id.is_some()).count());
+    println!("Игр с server_id != None: {}",
+             state.games.values().filter(|game| game.server_id.is_some()).count());
 
-    {
-//        let game_id = state.current_game_ids.iter()
-//            .max_by_key(|&&game_id| state.get_game(game_id).number_players()).unwrap();
-//        println!("")
-        println!("Игры с более чем 5 игроками:");
-        for &game_id in state.current_game_ids.iter() {
-            if state.get_game(game_id).number_players() > 5 {
-                let game_name: &str = state.get_game_name(game_id).into();
-                println!("\t{}", game_name);
-            }
-        }
-    }
+//    {
+////        let game_id = state.current_game_ids.iter()
+////            .max_by_key(|&&game_id| state.get_game(game_id).number_players()).unwrap();
+////        println!("")
+//        println!("Игры с более чем 5 игроками:");
+//        for &game_id in state.current_game_ids.iter() {
+//            if state.get_game(game_id).number_players() > 5 {
+//                let game_name: &str = state.get_game_name(game_id).into();
+//                println!("\t{}", game_name);
+//            }
+//        }
+//    }
 
     for (game_id, game) in &state.games {
         let players_online = game.players_intervals.iter()

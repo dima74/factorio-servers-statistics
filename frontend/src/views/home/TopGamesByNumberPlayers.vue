@@ -19,6 +19,10 @@
     text-decoration: none;
   }
 
+  .line:hover {
+    background: #424242;
+  }
+
   .rich-text {
     display: block !important;
   }

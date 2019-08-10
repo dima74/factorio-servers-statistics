@@ -41,7 +41,8 @@
   }
 
   .rich-text {
-    display: flex;
+    white-space: pre-wrap;
+    display: inline-flex;
     align-items: center;
   }
 </style>

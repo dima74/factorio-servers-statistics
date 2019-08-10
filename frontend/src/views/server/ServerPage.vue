@@ -60,17 +60,16 @@
     }),
     async mounted() {
       const week = 7 * 24 * 60;
-      this.timeEnd = Math.round(Date.now() / 1000 / 60);
-      this.timeBegin = this.timeEnd - week;
+      // this.timeEnd = Math.round(Date.now() / 1000 / 60);
+      // this.timeBegin = this.timeEnd - week;
 
-      // api возвращает последние игры в начале массива
-      const games = (await Api.getServerInfo(this.id)).reverse();
+      const durationBackend = 2 * 24 * 60;
+      const duration = 1 * 24 * 60;
+      this.timeBegin = 1 + durationBackend - duration;
+      this.timeEnd = 1 + durationBackend;
+      assert(this.timeBegin < this.timeEnd);
 
-      // todo remove
-      this.timeBegin = games[0].timeBegin;
-      // this.timeEnd = Math.max(...games.map(({ timeEnd }) => timeEnd));
-      this.timeEnd = this.timeBegin + 60;
-      assert(this.timeBegin <= this.timeEnd);
+      const games = (await Api.getServerInfo(this.id, this.timeBegin, this.timeEnd));
 
       this.transformGames(games);
       this.games = Object.freeze(games);

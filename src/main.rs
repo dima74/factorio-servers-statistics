@@ -1,4 +1,6 @@
-#![feature(proc_macro_hygiene, decl_macro, type_ascription)]
+#![feature(proc_macro_hygiene)]
+#![feature(type_ascription)]
+#![feature(decl_macro)]
 
 use std::{fs, thread};
 use std::path::Path;
@@ -13,11 +15,11 @@ use parking_lot::RwLock;
 use fss::{analytics, cacher, external_storage, fetcher_get_game_details, fetcher_get_games, fetcher_get_games_offline, state};
 use fss::external_storage::SaverEvent;
 use fss::global_config::GLOBAL_CONFIG;
-use fss::state::{StateLock, TimeMinutes, updater};
+use fss::state::StateLock;
 
 mod server;
 
-const DEBUG_STATE_FILE: &str = "temp/state-offline/60/state.bin.xz";
+const DEBUG_STATE_FILE: &str = "temp/state-offline/2880/state.bin.xz";
 //const DEBUG_STATE_FILE: &str = "temp/state-online/60/state.bin.xz";
 
 fn main() {
@@ -30,6 +32,7 @@ fn main() {
     if pipeline != "production" {
         GLOBAL_CONFIG.lock().unwrap().use_cache_for_get_game_details = true;
     }
+    GLOBAL_CONFIG.lock().unwrap().pipeline = pipeline.to_owned();
 
     match pipeline {
         "production" => run_production_pipeline(),
@@ -226,7 +229,15 @@ fn create_state_from_saved_data(number_responses: u32) {
     let state_lock = Arc::new(RwLock::new(whole_state.state));
     let fetcher_get_game_details_state_lock = Arc::new(RwLock::new(whole_state.fetcher_get_game_details_state));
 
+    // fetcher_get_game_details
     let (sender_fetcher_get_game_details, receiver_fetcher_get_game_details) = mpsc::channel();
+    let fetcher_get_game_details_thread = {
+        let state_lock = state_lock.clone();
+        let fetcher_get_game_details_state_lock = fetcher_get_game_details_state_lock.clone();
+        // fetcher_get_game_details обязательно должен быть в отдельном потоке и работать параллельно с updater
+        // иначе updater будет бесконечно откладывать merge и любые перезапуски серверов не будут учтены
+        spawn_thread_with_name("fetcher_get_game_details", move || fetcher_get_game_details::fetcher(receiver_fetcher_get_game_details, fetcher_get_game_details_state_lock, state_lock))
+    };
 
     // updater
     {
@@ -235,16 +246,14 @@ fn create_state_from_saved_data(number_responses: u32) {
         state::updater::updater(updater_state_lock, state_lock, receiver_fetcher_get_games, sender_fetcher_get_game_details);
     }
 
-    // fetcher_get_game_details
-    {
-        let state_lock = state_lock.clone();
-        let fetcher_get_game_details_state_lock = fetcher_get_game_details_state_lock.clone();
-        fetcher_get_game_details::fetcher(receiver_fetcher_get_game_details, fetcher_get_game_details_state_lock, state_lock);
-    }
+    fetcher_get_game_details_thread.join().unwrap();
 
-    let mut updater_state = updater_state_lock.write();
-    let mut state = state_lock.write();
-    updater::try_merge_host_ids(&mut updater_state, &mut state, TimeMinutes::new(number_responses as u32 + 1).unwrap());
+    let updater_state = updater_state_lock.read();
+    let state = state_lock.read();
+
+    let number_games_with_prev_game_id = state.games.values().filter(|game| game.prev_game_id.is_some()).count();
+    dbg!(number_games_with_prev_game_id);
+    assert!(number_games_with_prev_game_id != 0);
 
     let fetcher_get_game_details_state = fetcher_get_game_details_state_lock.read();
     let filename = format!("temp/state-offline/{}/state.bin.xz", number_responses);

@@ -39,12 +39,12 @@
         if (duration <= 1) {
           return '1 minute';
         }
-        if (duration < 90) {
+        if (duration < 70) {
           return `${Math.round(duration)} minutes`;
         }
 
         const hours = duration / 60;
-        return `${hours < 10 ? hours.toFixed(1) : Math.round(hours)} hours`;
+        return `${hours < 2.8 ? hours.toFixed(1) : Math.round(hours)} hours`;
       },
     },
     computed: {

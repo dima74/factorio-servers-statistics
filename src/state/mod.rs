@@ -15,7 +15,7 @@ mod big_string;
 
 /// unix time, с точностью до минут
 /// (число минут, прошедшее с UNIX_EPOCH)
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
 pub struct TimeMinutes(pub NonZeroU32);
 
 impl TimeMinutes {
@@ -60,15 +60,15 @@ pub struct Mod {
 pub struct PlayerInterval {
     pub player_index: BigStringPart,
     // полуинтервал: [begin, end)
-    pub start: TimeMinutes,
+    pub begin: TimeMinutes,
     pub end: Option<TimeMinutes>,
 }
 
 impl PlayerInterval {
-    pub fn new(player_index: BigStringPart, start: TimeMinutes) -> Self {
+    pub fn new(player_index: BigStringPart, begin: TimeMinutes) -> Self {
         PlayerInterval {
             player_index,
-            start,
+            begin,
             end: None,
         }
     }
@@ -171,6 +171,35 @@ impl State {
 
     pub fn get_server_last_game_id(&self, id: ServerId) -> GameId {
         self.game_ids[id.0.get() as usize].clone()
+    }
+
+    // [time_begin, time_end)
+    // первые по времени игры в начале
+    pub fn get_server_games_in_interval(&self, server_id: ServerId, time_begin: TimeMinutes, time_end: TimeMinutes) -> Vec<GameId> {
+        assert!(time_begin < time_end);
+        let mut last_game = self.get_game(self.get_server_last_game_id(server_id));
+        while last_game.time_begin >= time_end {
+            match last_game.prev_game_id {
+                Some(prev_game_id) => last_game = self.get_game(prev_game_id),
+                None => return Vec::new(),
+            }
+        }
+        if let Some(game_time_end) = last_game.time_end {
+            if game_time_end <= time_begin {
+                return Vec::new();
+            }
+        }
+
+        let mut game_ids = vec![last_game.game_id];
+        while let Some(game_id) = self.get_game(*game_ids.last().unwrap()).prev_game_id {
+            if self.get_game(game_id).time_end.unwrap() > time_begin {
+                game_ids.push(game_id);
+            } else {
+                break;
+            }
+        }
+        game_ids.reverse();
+        game_ids
     }
 
     fn get_game_host(&self, id: GameId) -> Option<FssStr> {
