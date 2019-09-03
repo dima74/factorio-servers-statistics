@@ -1,8 +1,8 @@
 #![feature(duration_constants)]
-#![feature(duration_float)]
 #![feature(inner_deref)]
 #![feature(slice_partition_at_index)]
 #![feature(type_ascription)]
+#![feature(div_duration)]
 
 pub mod api;
 pub mod external_storage;

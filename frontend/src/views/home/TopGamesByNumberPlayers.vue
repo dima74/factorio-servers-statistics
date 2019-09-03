@@ -5,6 +5,7 @@
       v-ripple
       class="line pa-2"
       v-for="game of info.topCurrentGamesByNumberPlayers"
+      :key="game.serverId"
       :to="`/server/${game.serverId}`"
     >
       <span class="rich-text mr-2" v-html="transformRichText(game.name)"></span>
@@ -35,8 +36,6 @@
 <script>
   export default {
     name: 'TopGamesByNumberPlayers',
-    props: {
-      info: {},
-    },
+    props: ['info'],
   };
 </script>

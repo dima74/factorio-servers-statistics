@@ -1,5 +1,5 @@
 <template>
-  <div v-if="servers" class="grid">
+  <div v-if="info" class="grid">
     <v-layout justify-center>
       <v-flex xs6>
         <v-autocomplete
@@ -59,9 +59,8 @@
       const info = (await axios.get('/main-page')).data;
       this.info = Object.freeze(info);
 
-      const { servers } = (await axios.get('/servers_search_index')).data;
       // todo sort by ???
-      this.servers = Object.entries(servers)
+      this.servers = Object.entries(info.searchIndex)
           .map(([gameName, serverId]) => ({ text: gameName, value: serverId }));
     },
   };
