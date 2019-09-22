@@ -56,6 +56,7 @@ fn main() {
             create_state(number_responses);
         }
         "convert_state" => convert_state(),
+        "prune_backups" => external_storage::prune_state_backups().unwrap(),
         _ => panic!("unknown <TYPE> option"),
     };
 
@@ -70,7 +71,7 @@ fn spawn_thread_with_name<F>(name: &str, f: F) -> JoinHandle<()>
 }
 
 fn regular_saver_notifier(sender: mpsc::Sender<SaverEvent>) {
-    const SAVER_NOTIFY_INTERVAL: u64 = 60 * 20; // in seconds
+    const SAVER_NOTIFY_INTERVAL: u64 = 10 * 60; // in seconds
     loop {
         thread::sleep(Duration::from_secs(SAVER_NOTIFY_INTERVAL));
         let result = sender.send(SaverEvent::REGULAR);
@@ -150,6 +151,18 @@ fn run_production_pipeline() {
             // .send() возвращает ошибку если receiver был уничтожен (deallocate), но у нас такого не может быть
             saver_sender.send(SaverEvent::SIGINT).unwrap();
         }).expect("Error setting SIGINT handler");
+    }
+
+    // external storage prune state backups
+    {
+        spawn_thread_with_name("external_storage_prune_state_backups", || {
+            const DELAY: u64 = 3600; // in seconds
+            thread::sleep(Duration::from_secs(DELAY));
+            let result = external_storage::prune_state_backups();
+            if let Err(err) = result {
+                eprintln!("[error] [external_storage] error when prune state backups: {}", err);
+            }
+        });
     }
 
     init_server_with_cacher(state_lock);

@@ -1,8 +1,9 @@
+use std::error::Error;
 use std::io;
 use std::path::Path;
 
 use rusoto_core::RusotoError;
-use rusoto_s3::{GetObjectRequest, ListObjectsV2Request, PutObjectRequest, S3, S3Client, StreamingBody};
+use rusoto_s3::{DeleteObjectRequest, GetObjectRequest, ListObjectsV2Request, PutObjectRequest, S3, S3Client, StreamingBody};
 
 use lazy_static::lazy_static;
 
@@ -31,19 +32,19 @@ lazy_static! {
     static ref YANDEX_CLOUD: YandexCloud = YandexCloud::new();
 }
 
-pub fn list_bucket(key: &str) -> Vec<String> {
-    let mut key = key.to_owned();
-    if !key.ends_with('/') {
-        key.push('/');
+pub fn list_bucket(path: &str) -> Vec<String> {
+    let mut path = path.to_owned();
+    if !path.ends_with('/') {
+        path.push('/');
     }
 
     let result = YANDEX_CLOUD.s3_client.list_objects_v2(ListObjectsV2Request {
         bucket: "factorio-servers-statistics".to_owned(),
-        start_after: Some(key.to_owned()),
+        start_after: Some(path.to_owned()),
         ..Default::default()
     }).sync()
         .unwrap_or_else(|err| panic!(format!(
-            "[error] [yandex_cloud] Can't list bucket `{}`: {}", key, err)));
+            "[error] [yandex_cloud] Can't list bucket `{}`: {}", path, err)));
 
     result.contents.unwrap_or_default().into_iter()
         .filter_map(|object| object.key)
@@ -63,33 +64,46 @@ fn get_rusoto_streaming_body(filename: &Path) -> StreamingBody {
     StreamingBody::new(file)
 }
 
-pub fn upload(key: &str, filename: &Path, content_type: &str) {
+pub fn upload(path: &str, filename: &Path, content_type: &str) {
     let streaming_body = get_rusoto_streaming_body(filename);
-    let result = YANDEX_CLOUD.s3_client.put_object(PutObjectRequest {
+    let put_request = PutObjectRequest {
         bucket: BUCKET.to_owned(),
-        key: key.to_string(),
+        key: path.to_string(),
         body: Some(streaming_body),
         content_type: Some(content_type.to_owned()),
         ..Default::default()
-    }).sync();
+    };
 
-    if let Err(err) = result {
+    let result = YANDEX_CLOUD.s3_client.put_object(put_request).sync();
+    if let Err(err) = &result {
         eprintln!("[error] [yandex_cloud] Can't upload: {}", err);
         if let RusotoError::Unknown(err) = err {
-            eprintln!("Can't upload{:?}", err.body);
+            eprintln!("[error] [yandex_cloud] Can't upload: {:?}", err.body);
         }
+
+        // todo
+        result.unwrap();
     }
 }
 
-pub fn download(key: &str) -> impl io::Read {
+pub fn download(path: &str) -> impl io::Read {
     let get_request = GetObjectRequest {
         bucket: BUCKET.to_owned(),
-        key: key.to_owned(),
+        key: path.to_owned(),
         ..Default::default()
     };
 
-    let s3_client: &S3Client = &YANDEX_CLOUD.s3_client;
-    let result = s3_client.get_object(get_request).sync()
-        .expect(&format!("Couldn't download {} object from Yandex.Cloud", key));
+    let result = YANDEX_CLOUD.s3_client.get_object(get_request).sync()
+        .expect(&format!("Couldn't download {} object from Yandex.Cloud", path));
     result.body.unwrap().into_blocking_read()
+}
+
+pub fn delete(path: &str) -> Result<(), Box<dyn Error>> {
+    let delete_request = DeleteObjectRequest {
+        bucket: BUCKET.to_owned(),
+        key: path.to_owned(),
+        ..Default::default()
+    };
+    YANDEX_CLOUD.s3_client.delete_object(delete_request).sync()?;
+    Ok(())
 }

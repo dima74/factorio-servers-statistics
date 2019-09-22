@@ -1,9 +1,11 @@
 use std::collections::{HashMap, VecDeque};
+use std::error::Error;
 use std::fs::File;
 use std::num::NonZeroU32;
 use std::path::Path;
 use std::sync::{Arc, mpsc};
 
+use itertools::Itertools;
 use parking_lot::RwLock;
 use xz2::read::XzDecoder;
 use xz2::write::XzEncoder;
@@ -12,6 +14,8 @@ use crate::{fetcher_get_game_details, yandex_cloud_storage};
 use crate::external_storage::SaverEvent::SIGINT;
 use crate::state::{BigString, State, StateLock};
 use crate::state::updater::UpdaterState;
+
+mod backups;
 
 const PRIMARY_STATES_DIRECTORY: &str = "states-hourly";
 const STATE_TEMPORARY_FILE: &str = "state.bin.xz";
@@ -101,6 +105,16 @@ pub fn save_state_to_file(
     bincode::serialize_into(writer, &data).unwrap();
 }
 
+fn key_to_path(key: u64) -> String {
+    format!("{}/{}.bin.xz", PRIMARY_STATES_DIRECTORY, key)
+}
+
+fn path_to_key(path: &str) -> Result<u64, std::num::ParseIntError> {
+    let start = PRIMARY_STATES_DIRECTORY.len() + "/".len();
+    let end = path.len() - ".bin.xz".len();
+    path[start..end].parse()
+}
+
 pub fn save_state(
     updater_state: &UpdaterState,
     state: &State,
@@ -108,11 +122,11 @@ pub fn save_state(
 ) {
     save_state_to_file(updater_state, state, fetcher_get_game_details_state, STATE_TEMPORARY_FILE);
 
-    let hour_index = chrono::Utc::now().timestamp() / 3600;
-    let key = format!("{}/{}.bin.xz", PRIMARY_STATES_DIRECTORY, hour_index);
-    println!("[info]  [saver] upload state with key `{}`", key);
+    let key = chrono::Utc::now().timestamp() / 3600;
+    let path = key_to_path(key as u64);
+    println!("[info]  [saver] upload state with path `{}`", path);
     // todo retry
-    yandex_cloud_storage::upload(&key, Path::new(STATE_TEMPORARY_FILE), "application/x-xz");
+    yandex_cloud_storage::upload(&path, Path::new(STATE_TEMPORARY_FILE), "application/x-xz");
 }
 
 pub fn saver(
@@ -133,4 +147,33 @@ pub fn saver(
         }
     }
     eprintln!("[error] [saver] exit");
+}
+
+// path = "states-hourly/12345.bin.xz"
+// key = 12345  (unix time divided by 3600)
+// index = 1 + max(keys) - key  (latest backup has index 1)
+pub fn prune_state_backups() -> Result<(), Box<dyn Error>> {
+    let paths = yandex_cloud_storage::list_bucket(PRIMARY_STATES_DIRECTORY);
+    let keys: Result<Vec<u64>, _> = paths.into_iter()
+        .map(|path| path_to_key(&path))
+        .collect();
+    let keys = keys?;
+    if keys.len() <= 1 {
+        return Ok(());
+    }
+
+    let max_key = keys.iter().max().unwrap();
+    let indexes: Vec<u64> = keys.iter()
+        .map(|key| 1 + max_key - key)
+        .sorted()
+        .collect();
+
+    let indexes_to_delete = backups::find_indexes_to_delete(&indexes);
+    println!("[info]  [external_storage] indexes to be deleted: {:?}  (all indexes: {:?})", &indexes_to_delete, &indexes);
+    for index in indexes_to_delete {
+        let key = max_key + 1 - index;
+        let path = key_to_path(key);
+        yandex_cloud_storage::delete(&path)?;
+    }
+    Ok(())
 }
