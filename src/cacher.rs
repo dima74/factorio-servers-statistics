@@ -74,8 +74,10 @@ fn update_current_top_games_by_number_players(state: &State, cacher_state_lock: 
         .filter(|game| game.server_id.is_some())
         .map(|game| (game, game.number_players() as u32))
         .collect();
-    pairs.partition_at_index_by_key(TOP_SIZE - 1, |(_, number_players)| Reverse(*number_players));
-    pairs.truncate(TOP_SIZE);
+    if pairs.len() > TOP_SIZE {
+        pairs.partition_at_index_by_key(TOP_SIZE - 1, |(_, number_players)| Reverse(*number_players));
+        pairs.truncate(TOP_SIZE);
+    }
     pairs.sort_by_key(|(_, number_players)| Reverse(*number_players));
 
     let top_games = pairs.into_iter()

@@ -14,6 +14,7 @@ pub mod util;
 pub mod analytics;
 pub mod global_config;
 pub mod cacher;
+pub mod yandex_cloud_storage;
 
 #[cfg(test)]
 pub mod tests;

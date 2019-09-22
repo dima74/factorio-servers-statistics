@@ -23,6 +23,8 @@ const DEBUG_STATE_FILE: &str = "temp/state-offline/2880/state.bin.xz";
 //const DEBUG_STATE_FILE: &str = "temp/state-online/60/state.bin.xz";
 
 fn main() {
+    dotenv::dotenv().ok();
+
     let arguments = App::new("Factorio servers statistics")
         .arg_from_usage("<TYPE>")
         .arg_from_usage("--number_responses [val], 'only for TYPE = create_state_from_saved_data or create_state'")

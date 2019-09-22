@@ -1,16 +1,20 @@
 use std::collections::{HashMap, VecDeque};
 use std::fs::File;
 use std::num::NonZeroU32;
+use std::path::Path;
 use std::sync::{Arc, mpsc};
 
 use parking_lot::RwLock;
 use xz2::read::XzDecoder;
 use xz2::write::XzEncoder;
 
+use crate::{fetcher_get_game_details, yandex_cloud_storage};
 use crate::external_storage::SaverEvent::SIGINT;
-use crate::fetcher_get_game_details;
 use crate::state::{BigString, State, StateLock};
 use crate::state::updater::UpdaterState;
+
+const PRIMARY_STATES_DIRECTORY: &str = "states-hourly";
+const STATE_TEMPORARY_FILE: &str = "state.bin.xz";
 
 pub struct WholeState {
     pub updater_state: UpdaterState,
@@ -48,10 +52,23 @@ pub fn get_empty_state() -> WholeState {
     }
 }
 
+fn get_last_state_key() -> Option<String> {
+    let keys = yandex_cloud_storage::list_bucket(PRIMARY_STATES_DIRECTORY);
+    keys.into_iter().max()
+}
+
 pub fn fetch_state() -> WholeState {
-//    todo
-//    unimplemented!()
-    get_empty_state()
+    match get_last_state_key() {
+        // todo remove
+        None => get_empty_state(),
+        Some(key) => {
+            let mut reader = yandex_cloud_storage::download(&key);
+            let reader = XzDecoder::new(&mut reader);
+
+            let (updater_state, state, fetcher_get_game_details_state) = bincode::deserialize_from(reader).unwrap();
+            WholeState { updater_state, state, fetcher_get_game_details_state }
+        }
+    }
 }
 
 pub fn load_state_from_file(filename: &str) -> WholeState {
@@ -84,14 +101,18 @@ pub fn save_state_to_file(
     bincode::serialize_into(writer, &data).unwrap();
 }
 
-#[allow(warnings)]
 pub fn save_state(
     updater_state: &UpdaterState,
     state: &State,
     fetcher_get_game_details_state: &fetcher_get_game_details::State,
 ) {
-//    todo
-//    unimplemented!();
+    save_state_to_file(updater_state, state, fetcher_get_game_details_state, STATE_TEMPORARY_FILE);
+
+    let hour_index = chrono::Utc::now().timestamp() / 3600;
+    let key = format!("{}/{}.bin.xz", PRIMARY_STATES_DIRECTORY, hour_index);
+    println!("[info]  [saver] upload state with key `{}`", key);
+    // todo retry
+    yandex_cloud_storage::upload(&key, Path::new(STATE_TEMPORARY_FILE), "application/x-xz");
 }
 
 pub fn saver(
