@@ -138,10 +138,10 @@ pub fn get_games() -> GetGamesResponse {
         fs::read_to_string("temp/cached-data/get-games.json").unwrap()
     };
     let mut games: Vec<Game> = serde_json::from_str(&response).unwrap();
+    clean_get_games_response(&mut games);
     for game in games.iter() {
         check_response(game, true);
     }
-    clean_get_games_response(&mut games);
     games
 }
 
@@ -149,7 +149,7 @@ pub fn clean_get_games_response(games: &mut Vec<Game>) {
     for game in games.iter_mut() {
         game.players.retain(|player_name| !player_name.is_empty());
     }
-    games.retain(|game| game.host_id.is_some());
+    games.retain(|game| game.host_id.is_some() && game.application_version.game_version != "0.0.0");
 }
 
 // Ok(None) означает ошибку 404
