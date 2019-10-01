@@ -12,7 +12,7 @@ use std::time::Duration;
 use clap::{App, value_t};
 use parking_lot::RwLock;
 
-use fss::{analytics, cacher, external_storage, fetcher_get_game_details, fetcher_get_games, fetcher_get_games_offline, state};
+use fss::{analytics, api, cacher, external_storage, fetcher_get_game_details, fetcher_get_games, fetcher_get_games_offline, state};
 use fss::external_storage::SaverEvent;
 use fss::global_config::GLOBAL_CONFIG;
 use fss::state::StateLock;
@@ -57,6 +57,9 @@ fn main() {
         }
         "convert_state" => convert_state(),
         "prune_backups" => external_storage::prune_state_backups().unwrap(),
+        "fetch_one_game_details" => {
+            api::get_game_details(6067842).unwrap().unwrap();
+        }
         _ => panic!("unknown <TYPE> option"),
     };
 
@@ -154,16 +157,7 @@ fn run_production_pipeline() {
     }
 
     // external storage prune state backups
-    {
-        spawn_thread_with_name("external_storage_prune_state_backups", || {
-            const DELAY: u64 = 3600; // in seconds
-            thread::sleep(Duration::from_secs(DELAY));
-            let result = external_storage::prune_state_backups();
-            if let Err(err) = result {
-                eprintln!("[error] [external_storage] error when prune state backups: {}", err);
-            }
-        });
-    }
+    spawn_thread_with_name("external_storage_prune_state_backups", external_storage::prune_state_backups_thread);
 
     init_server_with_cacher(state_lock);
 }

@@ -4,6 +4,8 @@ use std::fs::File;
 use std::num::NonZeroU32;
 use std::path::Path;
 use std::sync::{Arc, mpsc};
+use std::thread;
+use std::time::Duration;
 
 use itertools::Itertools;
 use parking_lot::RwLock;
@@ -147,6 +149,17 @@ pub fn saver(
         }
     }
     eprintln!("[error] [saver] exit");
+}
+
+pub fn prune_state_backups_thread() {
+    const DELAY: u64 = 30 * 60; // in seconds
+    loop {
+        thread::sleep(Duration::from_secs(DELAY));
+        let result = prune_state_backups();
+        if let Err(err) = result {
+            eprintln!("[error] [external_storage] error when prune state backups: {}", err);
+        }
+    }
 }
 
 // path = "states-hourly/12345.bin.xz"
