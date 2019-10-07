@@ -40,7 +40,7 @@ pub fn list_bucket(path: &str) -> Vec<String> {
 
     let result = YANDEX_CLOUD.s3_client.list_objects_v2(ListObjectsV2Request {
         bucket: "factorio-servers-statistics".to_owned(),
-        start_after: Some(path.to_owned()),
+        prefix: Some(path.to_owned()),
         ..Default::default()
     }).sync()
         .unwrap_or_else(|err| panic!(format!(
@@ -48,11 +48,14 @@ pub fn list_bucket(path: &str) -> Vec<String> {
 
     result.contents.unwrap_or_default().into_iter()
         .filter_map(|object| object.key)
+        .filter(|key| key != &path)
         .collect()
 }
 
-fn get_rusoto_streaming_body(filename: &Path) -> StreamingBody {
+fn get_rusoto_streaming_body(filename: &Path) -> (StreamingBody, u64) {
     let file = std::fs::File::open(filename).unwrap();
+    file.sync_all().unwrap();
+    let file_length = file.metadata().unwrap().len();
 
     // https://stackoverflow.com/a/57812269/5812238
     use tokio::codec;
@@ -61,15 +64,17 @@ fn get_rusoto_streaming_body(filename: &Path) -> StreamingBody {
     let file = codec::FramedRead::new(file, codec::BytesCodec::new())
         .map(|r| r.freeze());
 
-    StreamingBody::new(file)
+    (StreamingBody::new(file), file_length)
 }
 
 pub fn upload(path: &str, filename: &Path, content_type: &str) {
-    let streaming_body = get_rusoto_streaming_body(filename);
+    let (streaming_body, file_length) = get_rusoto_streaming_body(filename);
     let put_request = PutObjectRequest {
         bucket: BUCKET.to_owned(),
         key: path.to_string(),
         body: Some(streaming_body),
+        // Yandex.Cloud стал требовать заголовок Content-Length 07.10.2019 ~16:00 UTC
+        content_length: Some(file_length as i64),
         content_type: Some(content_type.to_owned()),
         ..Default::default()
     };
