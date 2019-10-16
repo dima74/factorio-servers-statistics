@@ -126,7 +126,7 @@ pub fn save_state(
 
     let key = chrono::Utc::now().timestamp() / 3600;
     let path = key_to_path(key as u64);
-    println!("[info]  [saver] upload state with path `{}`", path);
+    println!("[info]  [saver] start uploading state with path `{}`", path);
     // todo retry
     yandex_cloud_storage::upload(&path, Path::new(STATE_TEMPORARY_FILE), "application/x-xz");
 }
@@ -143,6 +143,7 @@ pub fn saver(
         let state = state_lock.read();
         let fetcher_get_game_details_state = fetcher_get_game_details_state_lock.read();
         save_state(&updater_state, &state, &fetcher_get_game_details_state);
+        println!("[info]  [saver] done");
         if event == SIGINT {
             println!("[info]  [saver] exit (finished)");
             std::process::exit(77);
