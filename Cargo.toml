@@ -38,3 +38,4 @@ rusoto_core = { git = "https://github.com/rusoto/rusoto", rev = "958d9fa439770f9
 rusoto_credential = { git = "https://github.com/rusoto/rusoto", rev = "958d9fa439770f94d330d8e06d4ada58e76b3823" }
 tokio = "0.1.22"
 dotenv = "0.14.1"
+lz4 = "1.23.1"

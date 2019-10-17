@@ -12,15 +12,15 @@ use std::time::Duration;
 use clap::{App, value_t};
 use parking_lot::RwLock;
 
-use fss::{analytics, api, cacher, external_storage, fetcher_get_game_details, fetcher_get_games, fetcher_get_games_offline, state};
+use fss::{analytics, api, cacher, external_storage, fetcher_get_game_details, fetcher_get_games, fetcher_get_games_offline, state, yandex_cloud_storage};
 use fss::external_storage::SaverEvent;
 use fss::global_config::GLOBAL_CONFIG;
 use fss::state::StateLock;
 
 mod server;
 
-const DEBUG_STATE_FILE: &str = "temp/state-offline/2880/state.bin.xz";
-//const DEBUG_STATE_FILE: &str = "temp/state-online/60/state.bin.xz";
+const DEBUG_STATE_FILE: &str = "temp/state/state.bin.xz";
+//const DEBUG_STATE_FILE: &str = "temp/state/state.bin.lz4";
 
 fn main() {
     dotenv::dotenv().ok();
@@ -60,6 +60,9 @@ fn main() {
         "fetch_one_game_details" => {
             api::get_game_details(6067842).unwrap().unwrap();
         }
+        "fetch_latest_state" => fetch_latest_state(),
+        "fetch_all_states" => fetch_all_states(),
+        "recompress_backups" => external_storage::recompress_backups().unwrap(),
         _ => panic!("unknown <TYPE> option"),
     };
 
@@ -156,8 +159,8 @@ fn run_production_pipeline() {
         }).expect("Error setting SIGINT handler");
     }
 
-    // external storage prune state backups
-    spawn_thread_with_name("external_storage_prune_state_backups", external_storage::prune_state_backups_thread);
+    // backups prune + recompress
+    spawn_thread_with_name("external_storage_maintain_state_backups", external_storage::maintain_state_backups_thread);
 
     init_server_with_cacher(state_lock);
 }
@@ -312,4 +315,18 @@ fn convert_state() {
     let state = whole_state.state;
     let fetcher_get_game_details_state = whole_state.fetcher_get_game_details_state;
     external_storage::save_state_to_file(&updater_state, &state, &fetcher_get_game_details_state, DEBUG_STATE_FILE);
+}
+
+fn fetch_latest_state() {
+    let path = external_storage::get_last_state_path().unwrap();
+    yandex_cloud_storage::download_to_file(&path, Path::new(DEBUG_STATE_FILE)).unwrap();
+}
+
+fn fetch_all_states() {
+    let paths = external_storage::get_state_paths();
+    for path in paths {
+        let path_basename = &path[path.rfind('/').unwrap() + 1..];
+        let filename = format!("temp/backup/state-from-yandex-cloud/{}", path_basename);
+        yandex_cloud_storage::download_to_file(&path, Path::new(&filename)).unwrap();
+    }
 }

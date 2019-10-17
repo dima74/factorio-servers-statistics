@@ -9,8 +9,6 @@ use std::time::Duration;
 
 use itertools::Itertools;
 use parking_lot::RwLock;
-use xz2::read::XzDecoder;
-use xz2::write::XzEncoder;
 
 use crate::{fetcher_get_game_details, yandex_cloud_storage};
 use crate::external_storage::SaverEvent::SIGINT;
@@ -18,9 +16,13 @@ use crate::state::{BigString, State, StateLock};
 use crate::state::updater::UpdaterState;
 
 mod backups;
+mod compression;
 
 const PRIMARY_STATES_DIRECTORY: &str = "states-hourly";
-const STATE_TEMPORARY_FILE: &str = "state.bin.xz";
+const TEMPORARY_STATE_FILE: &str = "state.bin.lz4";
+const TEMPORARY_LZ4_FILE_FOR_RECOMPRESS: &str = "state-recompress.bin.lz4";
+const TEMPORARY_XZ_FILE_FOR_RECOMPRESS: &str = "state-recompress.bin.xz";
+const CONTENT_TYPE: &str = "application/octet-stream";
 
 pub struct WholeState {
     pub updater_state: UpdaterState,
@@ -58,30 +60,29 @@ pub fn get_empty_state() -> WholeState {
     }
 }
 
-fn get_last_state_key() -> Option<String> {
-    let keys = yandex_cloud_storage::list_bucket(PRIMARY_STATES_DIRECTORY);
-    keys.into_iter().max()
+pub fn get_state_paths() -> Vec<String> {
+    yandex_cloud_storage::list_bucket(PRIMARY_STATES_DIRECTORY)
+}
+
+pub fn get_last_state_path() -> Option<String> {
+    let paths = get_state_paths();
+    paths.into_iter().max()
 }
 
 pub fn fetch_state() -> WholeState {
-    match get_last_state_key() {
-        // todo remove
-        None => get_empty_state(),
-        Some(key) => {
-            let mut reader = yandex_cloud_storage::download(&key);
-            let reader = XzDecoder::new(&mut reader);
+    let path = get_last_state_path().unwrap();
+    let mut reader = yandex_cloud_storage::download(&path)
+        .expect(&format!("Couldn't download {} object from Yandex.Cloud", path));
+    let reader = compression::new_decoder(&mut reader, &path);
 
-            let (updater_state, state, fetcher_get_game_details_state) = bincode::deserialize_from(reader).unwrap();
-            WholeState { updater_state, state, fetcher_get_game_details_state }
-        }
-    }
+    let (updater_state, state, fetcher_get_game_details_state) = bincode::deserialize_from(reader).unwrap();
+    WholeState { updater_state, state, fetcher_get_game_details_state }
 }
 
 pub fn load_state_from_file(filename: &str) -> WholeState {
     let mut reader = File::open(filename).unwrap();
-    let reader = XzDecoder::new(&mut reader);
+    let reader = compression::new_decoder(&mut reader, filename);
 
-//    serde_json::from_reader(reader).unwrap()
     let (updater_state, state, fetcher_get_game_details_state) = bincode::deserialize_from(reader).unwrap();
     WholeState { updater_state, state, fetcher_get_game_details_state }
 }
@@ -101,19 +102,18 @@ pub fn save_state_to_file(
     let data = (updater_state, state, fetcher_get_game_details_state);
 
     let mut writer = File::create(filename).unwrap();
-    let writer = XzEncoder::new(&mut writer, 9);
+    let writer = compression::new_encoder(&mut writer, filename);
 
-//    serde_json::to_writer(&mut writer, &data).unwrap();
     bincode::serialize_into(writer, &data).unwrap();
 }
 
 fn key_to_path(key: u64) -> String {
-    format!("{}/{}.bin.xz", PRIMARY_STATES_DIRECTORY, key)
+    format!("{}/{}.bin.lz4", PRIMARY_STATES_DIRECTORY, key)
 }
 
 fn path_to_key(path: &str) -> Result<u64, std::num::ParseIntError> {
     let start = PRIMARY_STATES_DIRECTORY.len() + "/".len();
-    let end = path.len() - ".bin.xz".len();
+    let end = path.find('.').unwrap();
     path[start..end].parse()
 }
 
@@ -122,13 +122,13 @@ pub fn save_state(
     state: &State,
     fetcher_get_game_details_state: &fetcher_get_game_details::State,
 ) {
-    save_state_to_file(updater_state, state, fetcher_get_game_details_state, STATE_TEMPORARY_FILE);
+    save_state_to_file(updater_state, state, fetcher_get_game_details_state, TEMPORARY_STATE_FILE);
 
     let key = chrono::Utc::now().timestamp() / 3600;
     let path = key_to_path(key as u64);
     println!("[info]  [saver] start uploading state with path `{}`", path);
     // todo retry
-    yandex_cloud_storage::upload(&path, Path::new(STATE_TEMPORARY_FILE), "application/x-xz");
+    yandex_cloud_storage::upload(&path, Path::new(TEMPORARY_STATE_FILE), CONTENT_TYPE);
 }
 
 pub fn saver(
@@ -152,18 +152,55 @@ pub fn saver(
     eprintln!("[error] [saver] exit");
 }
 
-pub fn prune_state_backups_thread() {
+pub fn maintain_state_backups_thread() {
     const DELAY: u64 = 30 * 60; // in seconds
-    loop {
+    for index in 1.. {
         thread::sleep(Duration::from_secs(DELAY));
         let result = prune_state_backups();
         if let Err(err) = result {
             eprintln!("[error] [external_storage] error when prune state backups: {}", err);
         }
+
+        // every five hours
+        if index % 10 == 0 {
+            let result = recompress_backups();
+            if let Err(err) = result {
+                eprintln!("[error] [external_storage] error when recompress state backups: {}", err);
+            }
+        }
     }
 }
 
-// path = "states-hourly/12345.bin.xz"
+// lz4 -> xz
+pub fn recompress_backups() -> Result<(), Box<dyn Error>> {
+    let paths = get_state_paths();
+    let latest_path = match paths.iter().max() {
+        Some(path) => path,
+        None => return Ok(()),
+    };
+    let paths = paths.iter()
+        .filter(|&path| path.ends_with(".lz4") && path != latest_path);
+    for path_lz4 in paths {
+        let path_xz = path_lz4.replace(".lz4", ".xz");
+        println!("[info]  [external_storage] recompress backup: {} -> {}", path_lz4, path_xz);
+
+        yandex_cloud_storage::download_to_file(&path_lz4, Path::new(TEMPORARY_LZ4_FILE_FOR_RECOMPRESS))?;
+
+        let mut reader = File::open(TEMPORARY_LZ4_FILE_FOR_RECOMPRESS)?;
+        let mut reader = compression::new_decoder(&mut reader, &path_lz4);
+
+        let mut writer = File::create(TEMPORARY_XZ_FILE_FOR_RECOMPRESS)?;
+        let mut writer = compression::new_encoder(&mut writer, &path_xz);
+
+        std::io::copy(&mut reader, &mut writer)?;
+        yandex_cloud_storage::upload(&path_xz, Path::new(TEMPORARY_XZ_FILE_FOR_RECOMPRESS), CONTENT_TYPE);
+
+        yandex_cloud_storage::delete(&path_lz4)?;
+    }
+    Ok(())
+}
+
+// path = "states-hourly/12345.bin.<compression>"
 // key = 12345  (unix time divided by 3600)
 // index = 1 + max(keys) - key  (latest backup has index 1)
 pub fn prune_state_backups() -> Result<(), Box<dyn Error>> {

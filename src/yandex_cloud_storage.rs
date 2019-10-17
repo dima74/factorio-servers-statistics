@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::fs::File;
 use std::io;
 use std::path::Path;
 
@@ -91,16 +92,15 @@ pub fn upload(path: &str, filename: &Path, content_type: &str) {
     }
 }
 
-pub fn download(path: &str) -> impl io::Read {
+pub fn download(path: &str) -> Result<impl io::Read, Box<dyn Error>> {
     let get_request = GetObjectRequest {
         bucket: BUCKET.to_owned(),
         key: path.to_owned(),
         ..Default::default()
     };
 
-    let result = YANDEX_CLOUD.s3_client.get_object(get_request).sync()
-        .expect(&format!("Couldn't download {} object from Yandex.Cloud", path));
-    result.body.unwrap().into_blocking_read()
+    let result = YANDEX_CLOUD.s3_client.get_object(get_request).sync()?;
+    Ok(result.body.ok_or("no body")?.into_blocking_read())
 }
 
 pub fn delete(path: &str) -> Result<(), Box<dyn Error>> {
@@ -110,5 +110,13 @@ pub fn delete(path: &str) -> Result<(), Box<dyn Error>> {
         ..Default::default()
     };
     YANDEX_CLOUD.s3_client.delete_object(delete_request).sync()?;
+    Ok(())
+}
+
+pub fn download_to_file(path: &str, filename: &Path) -> Result<(), Box<dyn Error>> {
+    let mut reader = download(path)?;
+    let mut writer = File::create(filename)?;
+
+    std::io::copy(&mut reader, &mut writer)?;
     Ok(())
 }
