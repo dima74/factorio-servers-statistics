@@ -205,10 +205,11 @@ pub fn recompress_backups() -> Result<(), Box<dyn Error>> {
 // index = 1 + max(keys) - key  (latest backup has index 1)
 pub fn prune_state_backups() -> Result<(), Box<dyn Error>> {
     let paths = yandex_cloud_storage::list_bucket(PRIMARY_STATES_DIRECTORY);
-    let keys: Result<Vec<u64>, _> = paths.into_iter()
-        .map(|path| path_to_key(&path))
+    let key_to_path: Result<HashMap<u64, String>, _> = paths.into_iter()
+        .map(|path| path_to_key(&path).map(|key| (key, path)))
         .collect();
-    let keys = keys?;
+    let key_to_path = key_to_path?;
+    let keys: Vec<u64> = key_to_path.keys().copied().collect();
     if keys.len() <= 1 {
         return Ok(());
     }
@@ -223,7 +224,7 @@ pub fn prune_state_backups() -> Result<(), Box<dyn Error>> {
     println!("[info]  [external_storage] indexes to be deleted: {:?}  (all indexes: {:?})", &indexes_to_delete, &indexes);
     for index in indexes_to_delete {
         let key = max_key + 1 - index;
-        let path = key_to_path(key);
+        let path = key_to_path.get(&key).unwrap();
         yandex_cloud_storage::delete(&path)?;
     }
     Ok(())
