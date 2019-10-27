@@ -153,20 +153,12 @@ pub fn saver(
 }
 
 pub fn maintain_state_backups_thread() {
-    const DELAY: u64 = 30 * 60; // in seconds
-    for index in 1.. {
+    const DELAY: u64 = 20 * 60; // in seconds
+    loop {
         thread::sleep(Duration::from_secs(DELAY));
         let result = prune_state_backups();
         if let Err(err) = result {
             eprintln!("[error] [external_storage] error when prune state backups: {}", err);
-        }
-
-        // every five hours
-        if index % 10 == 0 {
-            let result = recompress_backups();
-            if let Err(err) = result {
-                eprintln!("[error] [external_storage] error when recompress state backups: {}", err);
-            }
         }
     }
 }

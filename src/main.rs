@@ -16,6 +16,7 @@ use fss::{analytics, api, cacher, external_storage, fetcher_get_game_details, fe
 use fss::external_storage::SaverEvent;
 use fss::global_config::GLOBAL_CONFIG;
 use fss::state::StateLock;
+use fss::util::basename;
 
 mod server;
 
@@ -62,6 +63,7 @@ fn main() {
         }
         "fetch_latest_state" => fetch_latest_state(),
         "fetch_all_states" => fetch_all_states(),
+        "fetch_latest_state_as_is" => fetch_latest_state_as_is(),
         "recompress_backups" => external_storage::recompress_backups().unwrap(),
         _ => panic!("unknown <TYPE> option"),
     };
@@ -103,6 +105,15 @@ fn init_server_with_cacher(state_lock: StateLock) {
 }
 
 fn run_production_pipeline() {
+    {
+        // backups recompression has to be first,
+        // because xz compression requires a lot of memory (370MB for level 8)
+        let result = external_storage::recompress_backups();
+        if let Err(err) = result {
+            eprintln!("[error] [external_storage] error when recompress state backups: {}", err);
+        }
+    }
+
     // todo убедиться что capacity(channel) == infinity, чтобы fetcher не блокировался на время подготовки данных для updater
     // fetcher_get_games
     let (sender_fetcher_get_games, receiver_fetcher_get_games) = mpsc::channel();
@@ -311,21 +322,26 @@ fn create_state(number_responses: u32) {
 
 fn convert_state() {
     let whole_state = external_storage::load_state_from_file(DEBUG_STATE_FILE);
-    let updater_state = whole_state.updater_state;
-    let state = whole_state.state;
-    let fetcher_get_game_details_state = whole_state.fetcher_get_game_details_state;
-    external_storage::save_state_to_file(&updater_state, &state, &fetcher_get_game_details_state, DEBUG_STATE_FILE);
+    external_storage::save_state_to_file(&whole_state.updater_state, &whole_state.state,
+                                         &whole_state.fetcher_get_game_details_state, DEBUG_STATE_FILE);
 }
 
 fn fetch_latest_state() {
+    let whole_state = external_storage::fetch_state();
+    external_storage::save_state_to_file(&whole_state.updater_state, &whole_state.state,
+                                         &whole_state.fetcher_get_game_details_state, DEBUG_STATE_FILE);
+}
+
+fn fetch_latest_state_as_is() {
     let path = external_storage::get_last_state_path().unwrap();
-    yandex_cloud_storage::download_to_file(&path, Path::new(DEBUG_STATE_FILE)).unwrap();
+    let filename = format!("temp/state/{}", basename(&path));
+    yandex_cloud_storage::download_to_file(&path, Path::new(&filename)).unwrap();
 }
 
 fn fetch_all_states() {
     let paths = external_storage::get_state_paths();
     for path in paths {
-        let path_basename = &path[path.rfind('/').unwrap() + 1..];
+        let path_basename = basename(&path);
         let filename = format!("temp/backup/state-from-yandex-cloud/{}", path_basename);
         yandex_cloud_storage::download_to_file(&path, Path::new(&filename)).unwrap();
     }

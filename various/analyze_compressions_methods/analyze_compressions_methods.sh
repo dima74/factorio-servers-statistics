@@ -27,6 +27,7 @@ function run() {
 }
 
 echo '<level>  <ram>  <time>  <result size>\n'
+echo "no compression\n$(ls -s1 --block-size=1K state.bin)\n"
 run lz4 lz4 1 12
 run zstd zst 1 19
 run bzip2 bz2 1 9
