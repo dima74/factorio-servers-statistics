@@ -105,15 +105,6 @@ fn init_server_with_cacher(state_lock: StateLock) {
 }
 
 fn run_production_pipeline() {
-    {
-        // backups recompression has to be first,
-        // because xz compression requires a lot of memory (370MB for level 8)
-        let result = external_storage::recompress_backups();
-        if let Err(err) = result {
-            eprintln!("[error] [external_storage] error when recompress state backups: {}", err);
-        }
-    }
-
     // todo убедиться что capacity(channel) == infinity, чтобы fetcher не блокировался на время подготовки данных для updater
     // fetcher_get_games
     let (sender_fetcher_get_games, receiver_fetcher_get_games) = mpsc::channel();
