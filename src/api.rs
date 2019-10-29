@@ -53,6 +53,8 @@ pub struct Game {
     pub host_id: Option<String>,
     #[serde(default)]  // omitted if empty
     pub tags: Vec<String>,
+    #[serde(skip_serializing)]
+    pub username: Option<String>,  // I have no idea what this field means
 
     // /get-games only fields
     pub has_mods: Option<bool>,
