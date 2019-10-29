@@ -139,7 +139,7 @@ pub fn get_games() -> GetGamesResponse {
     } else {
         fs::read_to_string("temp/cached-data/get-games.json").unwrap()
     };
-    let mut games: Vec<Game> = serde_json::from_str(&response).unwrap();
+    let mut games: Vec<Game> = parse_json_with_logging(&response).unwrap();
     clean_get_games_response(&mut games);
     for game in games.iter() {
         check_response(game, true);
@@ -165,6 +165,14 @@ fn reqwest_get_and_check_for_404(url: &str) -> Result<Option<String>, Box<dyn Er
     Ok(Some(response_text))
 }
 
+fn parse_json_with_logging<'a, T: de::Deserialize<'a>>(s: &'a str) -> serde_json::Result<T> {
+    let result = serde_json::from_str(s);
+    if let Err(err) = &result {
+        eprintln!("[error] [api] serde_json::from_str failed: {}\n\tjson: {}", err, s);
+    }
+    result
+}
+
 // Ok(None) означает что api вернул 404 первый раз
 pub fn get_game_details(game_id: u64) -> Result<Option<GetGameDetailsResponse>, Box<dyn Error>> {
     let api_url: String = format!("{}/get-game-details/{}", API_BASE_URL, game_id);
@@ -181,7 +189,7 @@ pub fn get_game_details(game_id: u64) -> Result<Option<GetGameDetailsResponse>, 
         Err(_) => reqwest_get_with_retries(&api_url, 4)?,
     };
 
-    let mut game: Game = serde_json::from_str(&response).unwrap();
+    let mut game: Game = parse_json_with_logging(&response).unwrap();
     check_response(&game, false);
     game.mods.as_mut().unwrap().retain(|mod_| mod_.name != "base");
     Ok(Some(game))
