@@ -1,10 +1,10 @@
 use std::io::{Read, Write};
 
-// we can't use level 9, because compressor memory requirements are
+// compressor memory requirements are
 //   370MB for level 8 and
-//   674MB for level 9,
-// but heroku dyno has only 512MB
-const XZ_COMPRESSION_LEVEL: u32 = 8;
+//   674MB for level 9
+// we will run recompression in xz only in circleci
+const XZ_COMPRESSION_LEVEL: u32 = 9;
 const LZ4_COMPRESSION_LEVEL: u32 = 1;
 
 pub fn new_decoder<'a>(reader: impl Read + 'a, filename: &str) -> Box<dyn Read + 'a> {

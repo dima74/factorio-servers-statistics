@@ -1,0 +1,49 @@
+version: 2
+
+jobs:
+  test:
+    docker:
+      - image: circleci/rust
+    steps:
+      - checkout
+      - run:
+          name: Test
+          command: cargo test
+  recompress_backups:
+    docker:
+      - image: circleci/rust
+    steps:
+      - checkout
+      - run:
+          name: Recompress backups
+          command: cargo run --release --bin fss -- recompress_backups
+  deploy:
+    docker:
+      - image: buildpack-deps:trusty
+    steps:
+      - checkout
+      - run:
+          # HEROKU_API_KEY can be created via `heroku authorizations:create`
+          # https://devcenter.heroku.com/articles/authentication#retrieving-the-api-token
+          name: Deploy Master to Heroku
+          command: |
+            git push --force https://heroku:$HEROKU_API_KEY@git.heroku.com/$HEROKU_APP_NAME.git master
+
+workflows:
+  version: 2
+  commit:
+    jobs:
+      - test
+      - deploy:
+          requires:
+            - test
+  recompress_backups:
+    jobs:
+      - recompress_backups
+    triggers:
+      - schedule:
+          cron: "33 3 * * *"  # https://crontab.guru/#33_3_*_*_*
+          filters:
+            branches:
+              only:
+                - master
