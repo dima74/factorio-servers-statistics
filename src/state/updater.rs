@@ -36,7 +36,7 @@ pub struct UpdaterState {
     pub scheduled_to_merge_host_ids: HashMap<HostId, HostIdMergeInfo>,
 }
 
-const HOST_ID_MERGE_DELAY: u32 = 20;  // in minutes
+pub const HOST_ID_MERGE_DELAY: u32 = 20;  // in minutes
 
 fn convert_snapshot_to_game(game_snapshot: &api::Game, state: &mut State, time: TimeMinutes) -> Game {
     // host_id.unwrap() можно делать, потому что в api::get_games игры без host_id удаляются

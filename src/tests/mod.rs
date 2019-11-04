@@ -5,7 +5,7 @@ use std::thread;
 use parking_lot::RwLock;
 
 use crate::{api, external_storage, state};
-use crate::state::{GameId, Mod, StateLock, TimeMinutes};
+use crate::state::{GameId, Mod, StateLock, TimeMinutes, updater};
 
 pub fn fetcher_get_game_details(receiver: mpsc::Receiver<GameId>, state_lock: StateLock) {
     let mut state = state_lock.write();
@@ -45,6 +45,7 @@ fn prepare_games(games: Vec<(u8, u32) /* host_id, game_id */>) -> Vec<api::Game>
                 game_time_elapsed: 0,
                 has_password: false,
                 tags: vec![],
+                username: None,
                 has_mods: None,
                 mod_count: None,
                 last_heartbeat: None,
@@ -80,12 +81,16 @@ fn merge() {
         thread::spawn(move || state::updater::updater(updater_state_lock, state_lock, receiver_fetcher_get_games, sender_fetcher_get_game_details))
     };
 
+    const DELAY: u32 = 40;
+    assert_eq!(updater::HOST_ID_MERGE_DELAY, 20);
+    assert!(DELAY > updater::HOST_ID_MERGE_DELAY);
+
     // (host_id, game_id)
     let mut games = Vec::new();
-    for _ in 0..10 { games.push(vec![(1, 1)]); }
+    for _ in 0..DELAY { games.push(vec![(1, 1)]); }
     games.push(vec![(1, 1), (1, 2)]);
-    for _ in 0..10 { games.push(vec![(1, 2)]); }
-    for _ in 0..10 { games.push(vec![]); }
+    for _ in 0..DELAY { games.push(vec![(1, 2)]); }
+    for _ in 0..DELAY { games.push(vec![]); }
     for (time, games) in games.into_iter().enumerate() {
         let games = prepare_games(games);
         let time = TimeMinutes::new(time as u32 + 1).unwrap();
