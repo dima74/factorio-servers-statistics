@@ -76,6 +76,7 @@
       pageWidth: 'updateSvgWidth',
       pageHeight: 'updateSvgWidth',
       svgSize: 'updatePlot',
+      games: 'updatePlot',
       cursorTime(time) {
         if (time === null) {
           this.$emit('hoverPlot', null);

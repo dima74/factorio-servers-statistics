@@ -4,16 +4,25 @@
     <h2 class="title mb-3">
       {{ title }}
     </h2>
-    <div
-      v-for="player of (hoverPlot ? hoverPlot.players : currentOnlinePlayers)"
-    >
-      {{ player.name }} ({{ formatPlayerOnlineDuration((hoverPlot ? hoverPlot.time : timeEnd) - player.begin) }})
+    <div class="list custom-scrollbar">
+      <div
+        v-for="player of (hoverPlot ? hoverPlot.players : currentOnlinePlayers)"
+      >
+        {{ player.name }} ({{ formatPlayerOnlineDuration((hoverPlot ? hoverPlot.time : timeEnd) - player.begin) }})
+      </div>
     </div>
   </v-flex>
 </template>
 
 <style scoped>
+  .list {
+    overflow-y: auto;
+    max-height: 60vh;
+  }
 
+  .custom-scrollbar {
+    scrollbar-width: thin;
+  }
 </style>
 
 <script lang="ts">

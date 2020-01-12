@@ -84,16 +84,16 @@ fn convert_game(game: &state::Game, state: &State, time_begin: TimeMinutes, time
 //pub fn get_server_info(server_id: ServerId, state_lock: rocket::State<StateLock>) -> Option<Json<Server>> {
 pub fn get_server_info(
     server_id: usize,
-    time_begin: u32,
-    time_end: u32,
+    time_begin: Option<u32>,
+    time_end: Option<u32>,
     state_lock: rocket::State<StateLock>,
 ) -> Option<Json<Server>> {
     let state = state_lock.read();
 
     // todo update rocket
     let server_id: ServerId = state.as_server_id(server_id)?;
-    let time_begin = TimeMinutes::new(time_begin)?;
-    let time_end = TimeMinutes::new(time_end)?;
+    let time_begin = TimeMinutes::new(time_begin.unwrap_or(1))?;
+    let time_end = TimeMinutes::new(time_end.unwrap_or(u32::max_value()))?;
 
     let game_ids = state.get_server_games_in_interval(server_id, time_begin, time_end);
     let games = game_ids.into_iter()
