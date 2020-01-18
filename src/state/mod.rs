@@ -45,7 +45,7 @@ pub type HostId = [u8; 32];
 /// будем использовать собственную нумерацию серверов, обозначаемую ServerId
 /// ServerId — индекс для массива game.game_ids
 /// `game_ids[ServerId]` — последний game_id этого сервера (такой что .next_game_id == None)
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct ServerId(NonZeroU32);
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -114,12 +114,34 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn number_players(&self) -> usize {
+    pub fn number_players_online(&self) -> usize {
         let first_online_player_index = self.players_intervals.iter()
             .rposition(|player_interval| player_interval.end.is_some())
             .map(|index| index + 1)
             .unwrap_or(0);
         self.players_intervals.len() - first_online_player_index
+    }
+
+    pub fn number_players_all(&self) -> usize {
+        use std::collections::HashSet;
+
+        self.players_intervals.iter()
+            .map(|player_interval| player_interval.player_index)
+            .collect::<HashSet<_>>()
+            .len()
+    }
+
+    /// сумма (число минут которые игрок был онлайн) по всем игрокам
+    pub fn total_player_minutes(&self) -> u64 {
+        let now = TimeMinutes::now();
+        self.players_intervals.iter()
+            .map(|player_interval| {
+                let begin = player_interval.begin;
+                let end = player_interval.end.unwrap_or(now);
+                let duration = end.get() - begin.get();
+                duration as u64
+            })
+            .sum()
     }
 
     pub fn are_details_fetched(&self) -> bool {
@@ -133,7 +155,8 @@ pub type StateLock = Arc<RwLock<State>>;
 #[serde(rename_all = "camelCase")]
 pub struct State {
     pub games: HashMap<GameId, Game>,
-    // индексы — ServerId
+    // индексы — ServerId, значения — последний GameId для данного ServerId
+    // game_ids[0] == u32::MAX
     pub game_ids: Vec<GameId>,
     // game_id из last_get_games_response
     pub current_game_ids: Vec<GameId>,
@@ -156,9 +179,9 @@ impl State {
         self.games.get_mut(&id).unwrap()
     }
 
-    pub fn get_game_name(&self, id: GameId) -> FssStr {
+    pub fn get_game_name(&self, id: GameId) -> &str {
         let game = self.get_game(id);
-        self.all_game_names.get(game.name)
+        self.all_game_names.get(game.name).into()
     }
 
     pub fn as_server_id(&self, id: usize) -> Option<ServerId> {
@@ -171,6 +194,14 @@ impl State {
 
     pub fn get_server_last_game_id(&self, id: ServerId) -> GameId {
         self.game_ids[id.0.get() as usize].clone()
+    }
+
+    pub fn get_server_first_game_id(&self, id: ServerId) -> GameId {
+        let mut game_id = self.get_server_last_game_id(id);
+        while let Some(prev_game_id) = self.get_game(game_id).prev_game_id {
+            game_id = prev_game_id;
+        }
+        game_id
     }
 
     // [time_begin, time_end)
@@ -202,9 +233,9 @@ impl State {
         game_ids
     }
 
-    fn get_game_host(&self, id: GameId) -> Option<FssStr> {
+    fn get_game_host(&self, id: GameId) -> Option<&str> {
         let game = self.get_game(id);
-        game.host_address.map(|host_address| self.all_host_addresses.get(host_address))
+        game.host_address.map(|host_address| self.all_host_addresses.get(host_address).into())
     }
 
     fn set_debug_names(&mut self) {

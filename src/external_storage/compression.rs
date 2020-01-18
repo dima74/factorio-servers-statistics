@@ -14,6 +14,8 @@ pub fn new_decoder<'a>(reader: impl Read + 'a, filename: &str) -> Box<dyn Read +
         Box::new(XzDecoder::new(reader))
     } else if filename.ends_with(".lz4") {
         Box::new(lz4::Decoder::new(reader).unwrap())
+    } else if filename.ends_with(".bin") {
+        Box::new(reader)
     } else {
         panic!("Unknown archive extension")
     }
@@ -30,6 +32,8 @@ pub fn new_encoder<'a>(writer: impl Write + 'a, filename: &str) -> Box<dyn Write
             .build(writer)
             .unwrap();
         let writer = lz4_wrapper::EncoderWrapper::new(writer);
+        Box::new(writer)
+    } else if filename.ends_with(".bin") {
         Box::new(writer)
     } else {
         panic!("Unknown archive extension")

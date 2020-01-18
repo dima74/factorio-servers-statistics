@@ -37,3 +37,14 @@ class Game {
   hostAddress: String;
   mods?: Mod[];
 }
+
+class GameSearchInfo {
+  serverId: ServerId;
+  name: String;
+  timeBegin: TimeMinutes;
+  timeEnd?: TimeMinutes;
+}
+
+class MainPageInfo {
+  // todo
+}

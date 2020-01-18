@@ -20,7 +20,8 @@ use fss::util::basename;
 
 mod server;
 
-const DEBUG_STATE_FILE: &str = "temp/state/state.bin.xz";
+const DEBUG_STATE_FILE: &str = "temp/state/state.bin";
+//const DEBUG_STATE_FILE: &str = "temp/state/state.bin.xz";
 //const DEBUG_STATE_FILE: &str = "temp/state/state.bin.lz4";
 
 fn main() {
@@ -65,6 +66,7 @@ fn main() {
         "fetch_all_states" => fetch_all_states(),
         "fetch_latest_state_as_is" => fetch_latest_state_as_is(),
         "recompress_backups" => external_storage::recompress_backups().unwrap(),
+        "temp" => temp(),
         _ => panic!("unknown <TYPE> option"),
     };
 
@@ -168,8 +170,10 @@ fn run_production_pipeline() {
 }
 
 fn run_web_server() {
+    println!("Loading state...");
     let whole_state = external_storage::load_state_from_file(DEBUG_STATE_FILE);
     let state_lock = Arc::new(RwLock::new(whole_state.state));
+    println!("Starting server...");
     init_server_with_cacher(state_lock);
 }
 
@@ -318,7 +322,8 @@ fn convert_state() {
 }
 
 fn fetch_latest_state() {
-    let whole_state = external_storage::fetch_state();
+    let mut whole_state = external_storage::fetch_state();
+    whole_state.state.compress_big_strings();
     external_storage::save_state_to_file(&whole_state.updater_state, &whole_state.state,
                                          &whole_state.fetcher_get_game_details_state, DEBUG_STATE_FILE);
 }
@@ -337,3 +342,5 @@ fn fetch_all_states() {
         yandex_cloud_storage::download_to_file(&path, Path::new(&filename)).unwrap();
     }
 }
+
+fn temp() {}

@@ -44,6 +44,7 @@ impl BigString {
         BigStringPart(NonZeroU32::new(part_index).unwrap())
     }
 
+    // todo return &str ?
     pub fn get(&self, part_index: BigStringPart) -> FssStr {
         let begin = part_index.0.get() as usize;
         let length = self.content[begin..].iter()
@@ -112,6 +113,7 @@ pub struct FssStr<'a> (pub &'a [u8]);
 
 impl<'a> Into<&'a str> for FssStr<'a> {
     fn into(self) -> &'a str {
+        // todo from_utf8_unchecked ?
         std::str::from_utf8(self.0).unwrap()
     }
 }

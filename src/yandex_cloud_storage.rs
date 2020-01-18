@@ -58,6 +58,7 @@ fn get_rusoto_streaming_body(filename: &Path) -> (StreamingBody, u64) {
     file.sync_all().unwrap();
     let file_length = file.metadata().unwrap().len();
 
+    // https://github.com/rusoto/rusoto/issues/1509
     // https://stackoverflow.com/a/57812269/5812238
     use tokio::codec;
     use tokio::prelude::Stream;

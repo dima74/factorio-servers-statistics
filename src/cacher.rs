@@ -1,5 +1,4 @@
 use std::cmp::Reverse;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -20,9 +19,6 @@ pub struct TopCurrentGameByNumberPlayers {
 #[serde(rename_all = "camelCase")]
 struct MainPageInfo {
     top_current_games_by_number_players: Vec<TopCurrentGameByNumberPlayers>,
-    // todo: пока что содержит только сервера которые сейчас онлайн
-    // ключи — имена последней Game для этого ServerId
-    search_index: HashMap<String, ServerId>,
 }
 
 pub struct CacherState {
@@ -34,7 +30,6 @@ impl CacherState {
     pub fn new() -> Self {
         let main_page = MainPageInfo {
             top_current_games_by_number_players: Vec::new(),
-            search_index: HashMap::new(),
         };
         Self {
             main_page,
@@ -53,7 +48,6 @@ pub fn cacher(cacher_state_lock: CacherStateLock, state_lock: StateLock) {
         println!("[info]  [cacher] start iteration #{}", i);
 
         update_current_top_games_by_number_players(&state_lock.read(), &cacher_state_lock);
-        update_search_index(&state_lock.read(), &cacher_state_lock);
 
         {
             let mut cacher_state = cacher_state_lock.write();
@@ -72,7 +66,7 @@ fn update_current_top_games_by_number_players(state: &State, cacher_state_lock: 
     let mut pairs: Vec<_> = state.current_game_ids.iter()
         .map(|&game_id| state.get_game(game_id))
         .filter(|game| game.server_id.is_some())
-        .map(|game| (game, game.number_players() as u32))
+        .map(|game| (game, game.number_players_online() as u32))
         .collect();
     if pairs.len() > TOP_SIZE {
         pairs.partition_at_index_by_key(TOP_SIZE - 1, |(_, number_players)| Reverse(*number_players));
@@ -83,20 +77,9 @@ fn update_current_top_games_by_number_players(state: &State, cacher_state_lock: 
     let top_games = pairs.into_iter()
         .map(|(game, number_players)| TopCurrentGameByNumberPlayers {
             server_id: game.server_id.unwrap(),
-            name: state.get_game_name(game.game_id).into(),
+            name: state.get_game_name(game.game_id).to_owned(),
             number_players,
         })
         .collect();
     cacher_state_lock.write().main_page.top_current_games_by_number_players = top_games;
-}
-
-fn update_search_index(state: &State, cacher_state_lock: &CacherStateLock) {
-    let search_index = state.current_game_ids.iter()
-        .filter_map(|&game_id| {
-            let game = state.get_game(game_id);
-            let game_name = state.get_game_name(game_id).into();
-            game.server_id.map(|server_id| (game_name, server_id))
-        })
-        .collect();
-    cacher_state_lock.write().main_page.search_index = search_index;
 }

@@ -11,9 +11,12 @@
           placeholder="Search servers"
           v-model="server"
           :items="servers"
+          :loading="serversLoading"
+          :search-input.sync="serversQuery"
         >
           <template #item="{ item }">
-            <span class="rich-text" v-html="transformRichText(item.text)"></span>
+            <v-icon small :color="item.isOnline ? 'green' : 'transparent'">mdi-circle</v-icon>
+            <span class="rich-text ml-3" v-html="transformRichText(item.text)"></span>
           </template>
         </v-autocomplete>
       </v-flex>
@@ -38,30 +41,55 @@
   }
 </style>
 
-<script>
-  import axios from 'axios';
-  import TopGamesByNumberPlayers from '@/views/home/TopGamesByNumberPlayers';
+<script lang="ts">
+  import TopGamesByNumberPlayers from '@/views/home/TopGamesByNumberPlayers.vue';
+  import Api from '@/views/api';
+  import { timeMinutesToDate } from '@/util';
+  import debounce from 'lodash.debounce';
 
   export default {
     components: { TopGamesByNumberPlayers },
     data: () => ({
-      server: null,
-      servers: null,
       info: null,
+
+      // search servers
+      server: null,
+      serversQuery: null,
+      servers: [],
+      serversLoading: false,
     }),
     watch: {
       server(value) {
         const params = { id: value };
         this.$router.push({ name: 'server', params });
       },
+      serversQuery(query) {
+        if (query && query.length >= 2) {
+          this.makeSearchRequestDebounced();
+        }
+      },
     },
     async mounted() {
-      const info = (await axios.get('/main-page')).data;
-      this.info = Object.freeze(info);
+      this.info = await Api.getMainPageInfo();
+      this.makeSearchRequestDebounced = debounce(this.makeSearchRequest, 500);
+    },
+    methods: {
+      async makeSearchRequest() {
+        const games = await Api.searchServers(this.serversQuery);
+        const servers = games.map(info => ({
+          text: this.formatGameName(info),
+          value: info.serverId,
+          isOnline: info.timeEnd === null,
+        }));
+        this.servers = Object.freeze(servers);
+      },
+      formatGameName(info: GameSearchInfo) {
+        if (!info.timeEnd) return info.name;
 
-      // todo sort by ???
-      this.servers = Object.entries(info.searchIndex)
-          .map(([gameName, serverId]) => ({ text: gameName, value: serverId }));
+        const timeBegin = timeMinutesToDate(info.timeBegin);
+        const timeEnd = timeMinutesToDate(info.timeEnd);
+        return `${info.name} (${timeBegin.toLocaleDateString()}-${timeEnd.toLocaleDateString()})`;
+      },
     },
   };
 </script>

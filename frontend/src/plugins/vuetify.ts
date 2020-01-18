@@ -13,6 +13,6 @@ export default new Vuetify({
       dark: {
         primary: '#ff9f1c',
       },
-    }
+    },
   },
 });

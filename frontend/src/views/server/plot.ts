@@ -37,7 +37,7 @@ export default class Plot {
   private extractIntervals(games: Game[]): PlayerInterval[] {
     return games.flatMap(game =>
         game.playersIntervals.filter(playerInterval =>
-            !(playerInterval.begin >= this.end || playerInterval.end <= this.begin)
+            !(playerInterval.begin >= this.end || playerInterval.end <= this.begin),
         ),
     );
   }

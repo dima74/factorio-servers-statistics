@@ -35,6 +35,7 @@ pub fn get_empty_state() -> WholeState {
         scheduled_to_merge_host_ids: HashMap::new(),
     };
 
+    // нужно так как ServerId это NonZeroU32
     let dummy_first_game_id = NonZeroU32::new(std::u32::MAX).unwrap();
     let state = State {
         games: HashMap::new(),

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::api;
 use crate::fetcher_get_games::FetcherOutput;
 use crate::global_config::GLOBAL_CONFIG;
-use crate::state::{FssString, Game, GameId, HostId, PlayerInterval, State, StateLock, TimeMinutes};
+use crate::state::{Game, GameId, HostId, PlayerInterval, State, StateLock, TimeMinutes};
 
 //impl From<api::Mod> for Mod {
 //    fn from(v: api::Mod) -> Self {
@@ -95,6 +95,8 @@ fn update_game(game_snapshot: &api::Game, state: &mut State, time: TimeMinutes) 
     // находим тех из них, которые уже не онлайн, обновляем player_interval.end и перемещаем левее
     // новых игроков добавляем в конец
 
+    // todo заменить FssString на String?
+
     let mut player_names: HashSet<Vec<u8>> = game_snapshot.players.iter()
         .map(|player| player.to_owned().into_bytes()).collect();
     let mut first_online_player_index = game.players_intervals.iter()
@@ -113,6 +115,8 @@ fn update_game(game_snapshot: &api::Game, state: &mut State, time: TimeMinutes) 
             first_online_player_index += 1;
         }
     }
+
+    // в player_names остались только новые игроки
     for player_name in player_names {
         let player_index = state.all_player_names.add_vec(&player_name);
         let player_interval = PlayerInterval::new(player_index, time);
@@ -123,11 +127,11 @@ fn update_game(game_snapshot: &api::Game, state: &mut State, time: TimeMinutes) 
 #[derive(Serialize, Deserialize)]
 pub struct HostIdMergeInfo {
     // время первого события появлении/исчезновении game_id
-    time_begin: TimeMinutes,
+    pub time_begin: TimeMinutes,
     // время последнего события появлении/исчезновении game_id
-    time_end: TimeMinutes,
+    pub time_end: TimeMinutes,
     // список game_ids сразу перед time_begin
-    game_ids: Vec<GameId>,
+    pub game_ids: Vec<GameId>,
 }
 
 fn group_game_ids_by_host<'a>(game_ids: impl IntoIterator<Item=&'a GameId>, state: &State) -> HashMap<HostId, Vec<GameId>> {
@@ -188,11 +192,11 @@ fn try_match_by_property<F>(
     state: &mut State,
     get_property: F,
 ) -> bool
-    where F: Fn(&GameId, &State) -> FssString
+    where F: Fn(&GameId, &State) -> String
 {
-    let prev_game_ids_by_property: HashMap<FssString, GameId> = prev_game_ids_host
+    let prev_game_ids_by_property: HashMap<String, GameId> = prev_game_ids_host
         .iter().map(|&game_id| (get_property(&game_id, state), game_id)).collect();
-    let curr_game_ids_by_property: HashMap<FssString, GameId> = curr_game_ids_host
+    let curr_game_ids_by_property: HashMap<String, GameId> = curr_game_ids_host
         .iter().map(|&game_id| (get_property(&game_id, state), game_id)).collect();
     // если все property уникальны
     if prev_game_ids_by_property.len() == prev_game_ids_host.len() && curr_game_ids_by_property.len() == curr_game_ids_host.len() {
@@ -233,8 +237,8 @@ fn try_merge_host(prev_game_ids_host: &[GameId], curr_game_ids_host: &[GameId], 
             merge_games(game_id, None, state);
         }
     } else {
-        let get_game_name = |&game_id: &GameId, state: &State| state.get_game_name(game_id).into();
-        let get_game_host = |&game_id: &GameId, state: &State| state.get_game_host(game_id).unwrap().into();
+        let get_game_name = |&game_id: &GameId, state: &State| state.get_game_name(game_id).to_owned();
+        let get_game_host = |&game_id: &GameId, state: &State| state.get_game_host(game_id).unwrap().to_owned();
         let success_matched = try_match_by_property(&prev_game_ids_host, &curr_game_ids_host, state, get_game_name)
             || try_match_by_property(&prev_game_ids_host, &curr_game_ids_host, state, get_game_host);
         if !success_matched {
