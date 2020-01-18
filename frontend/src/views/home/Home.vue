@@ -7,6 +7,7 @@
           solo
           auto-select-first
           hide-details
+          hide-no-data
           autocomplete="off"
           placeholder="Search servers"
           v-model="server"
@@ -65,6 +66,7 @@
       },
       serversQuery(query) {
         if (query && query.length >= 2) {
+          this.serversLoading = true;
           this.makeSearchRequestDebounced();
         }
       },
@@ -75,13 +77,16 @@
     },
     methods: {
       async makeSearchRequest() {
-        const games = await Api.searchServers(this.serversQuery);
+        const query = this.serversQuery;
+        const games = await Api.searchServers(query);
+        if (this.serversQuery !== query) return;
         const servers = games.map(info => ({
           text: this.formatGameName(info),
           value: info.serverId,
           isOnline: info.timeEnd === null,
         }));
         this.servers = Object.freeze(servers);
+        this.serversLoading = false;
       },
       formatGameName(info: GameSearchInfo) {
         if (!info.timeEnd) return info.name;

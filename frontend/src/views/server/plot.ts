@@ -1,5 +1,11 @@
 import { assert } from '@/util';
 
+function roundIfAlmostInteger(value: number) {
+  const epsilon = 1e-6;
+  const result = Math.round(value);
+  return Math.abs(value - result) < epsilon ? result : value;
+}
+
 export default class Plot {
   private begin: TimeMinutes;
   private end: TimeMinutes;
@@ -50,8 +56,8 @@ export default class Plot {
       assert(playerInterval.begin < playerInterval.end);
       const timeBegin = Math.max(playerInterval.begin, this.begin) - this.begin;
       const timeEnd = Math.min(playerInterval.end, this.end) - this.begin;
-      let partBegin = timeBegin / this.partDuration;
-      let partEnd = timeEnd / this.partDuration;
+      let partBegin = roundIfAlmostInteger(timeBegin / this.partDuration);
+      let partEnd = roundIfAlmostInteger(timeEnd / this.partDuration);
       assert(0 <= partBegin && partBegin < this.numberParts);
       assert(0 <= partEnd && partEnd <= this.numberParts);
       assert(partBegin < partEnd);

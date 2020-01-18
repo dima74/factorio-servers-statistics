@@ -6,10 +6,20 @@
         class="headline rich-text"
         v-html="transformRichText(lastGame.name)"
       ></h1>
-      <h2
-        class="subtitle-1 rich-text"
-        v-html="transformRichText(lastGame.description)"
-      ></h2>
+      <div>
+        <h2
+          class="subtitle-1 rich-text"
+          v-html="transformRichText(lastGameDescription.short)"
+        ></h2>
+        <v-icon
+          v-if="lastGameDescription.long"
+          :title="lastGameDescription.long"
+          small
+          class="ml-3"
+        >
+          mdi-information-outline
+        </v-icon>
+      </div>
     </div>
     <v-layout class="mt-4">
       <players-list
@@ -17,7 +27,7 @@
         :timeEnd="gamesTimeRange[1]"
         :hoverPlot="hoverPlot"
       />
-      <v-flex xs6 class="pa-1">
+      <v-layout xs6 column class="pa-1">
 
         <v-btn-toggle
           v-model="duration"
@@ -43,12 +53,13 @@
         </v-btn-toggle>
 
         <server-number-players-plot
+          class="svgWrapper"
           :games="games"
           :timeBegin="gamesTimeRange[0]"
           :timeEnd="gamesTimeRange[1]"
           @hoverPlot="hoverPlot = $event"
         />
-      </v-flex>
+      </v-layout>
       <v-flex xs3 class="pa-1 text-center">
         <h2 class="title">Server info</h2>
         <div>Game version: {{ lastGame.gameVersion }}</div>
@@ -70,6 +81,10 @@
 
   .interval-select > :first-child {
     margin-left: 0 !important;
+  }
+
+  .svgWrapper {
+    flex: 1;
   }
 </style>
 
@@ -139,10 +154,12 @@
         }
 
         this.transformGames(games, timeBegin, timeEnd);
-        this.games = Object.freeze(games);
-        this.gamesTimeRange = [timeBegin, timeEnd];
-
-        // todo if games are empty?
+        if (games.length === 0) {
+          this.duration = 'all';
+        } else {
+          this.games = Object.freeze(games);
+          this.gamesTimeRange = [timeBegin, timeEnd];
+        }
       },
       transformGames(games: Game[], timeBegin, timeEnd) {
         // обработка игроков которые сейчас онлайн
@@ -189,6 +206,18 @@
     computed: {
       lastGame(): Game {
         return this.games[this.games.length - 1];
+      },
+      lastGameDescription() {
+        const description = this.lastGame.description;
+        const index = description.indexOf('\n');
+        if (index === -1) {
+          return { short: description };
+        } else {
+          return {
+            short: description.substring(0, index),
+            long: description,
+          };
+        }
       },
       duration: {
         get() {

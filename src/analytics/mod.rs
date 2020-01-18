@@ -1,6 +1,8 @@
 #![allow(warnings)]
 
 use crate::external_storage::WholeState;
+use itertools::Itertools;
+use std::collections::HashSet;
 
 pub fn analytics(whole_state: WholeState) {
     let state = whole_state.state;
@@ -8,7 +10,6 @@ pub fn analytics(whole_state: WholeState) {
 
     println!("число наблюдаемых game_id: {}", state.games.len());
     println!("число наблюдаемых серверов: {}", state.game_ids.len());
-    println!("scheduled_to_merge_host_ids.len(): {}", updater_state.scheduled_to_merge_host_ids.len());
     println!("game_ids_in_last_get_games_response.len(): {}", state.current_game_ids.len());
 
     println!("Игр с полученными details: {}",
@@ -17,6 +18,54 @@ pub fn analytics(whole_state: WholeState) {
              state.games.values().filter(|game| game.prev_game_id.is_some()).count());
     println!("Игр с server_id != None: {}",
              state.games.values().filter(|game| game.server_id.is_some()).count());
+
+    // merge
+    {
+        println!("scheduled_to_merge_host_ids.len(): {}", updater_state.scheduled_to_merge_host_ids.len());
+
+        let number_game_ids_to_merge: usize = updater_state
+            .scheduled_to_merge_host_ids
+            .values()
+            .map(|merge_info| merge_info.game_ids.len())
+            .sum();
+        println!("scheduled to merge game_ids: {:?}", number_game_ids_to_merge)
+    }
+
+    // распределение длительности отдельных game_id
+    {
+        let durations = state.games.values()
+            .filter_map(|game| {
+                game.time_end.map(|time_end| {
+                    let duration = time_end.get() - game.time_begin.get();
+                    duration as u64
+                })
+            });
+
+        println!("\tgame_id duration percentiles (in minutes):");
+        print_histogram(durations);
+    }
+
+    // распределение числа уникалььных игроков для game_id
+    {
+        let unique_players_count = state.games.values()
+            .map(|game| game.number_players_all() as u64);
+
+        println!("\tgame_id unique players count:");
+        print_histogram(unique_players_count);
+    }
+
+    // распределение игроков-часов для game_id (сумма времени игры по всем игрокам)
+    {
+        let unique_players_count = state.games.values()
+            .map(|game| game.total_player_minutes() / 60);
+
+        println!("\tgame_id player-hours:");
+        print_histogram(unique_players_count);
+    }
+
+//    посчитать число game_id достижимых если идти по prev_game_id от одного из серверов (state.game_ids)
+//    подумать что делать с играми, которые исчезают почти сразу после появления (проверить что их 30% --- столько игр без server_id)
+
 
 //    {
 ////        let game_id = state.current_game_ids.iter()
@@ -42,4 +91,26 @@ pub fn analytics(whole_state: WholeState) {
 //            println!("{:5}:  {:4} / {:4}", game_id, players_online, intervals_all);
         }
     }
+}
+
+fn print_histogram(values: impl Iterator<Item=u64>) {
+    use histogram::Histogram;
+
+    let mut histogram = Histogram::new();
+    for value in values {
+        histogram.increment(value);
+    }
+
+    let mut percentiles: Vec<f64> = (10..100).step_by(10)
+        .map(Into::into).collect();
+    percentiles.extend_from_slice(&[95.0, 99.0, 99.5, 99.9]);
+
+    for percentile in percentiles {
+        println!("{: <5}: {}", percentile, histogram.percentile(percentile).unwrap());
+    }
+    println!("Min: {}  Avg: {}  Max: {}",
+             histogram.minimum().unwrap(),
+             histogram.mean().unwrap(),
+             histogram.maximum().unwrap(),
+    );
 }

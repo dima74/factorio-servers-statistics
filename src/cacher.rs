@@ -19,6 +19,7 @@ pub struct TopCurrentGameByNumberPlayers {
 #[serde(rename_all = "camelCase")]
 struct MainPageInfo {
     top_current_games_by_number_players: Vec<TopCurrentGameByNumberPlayers>,
+    
 }
 
 pub struct CacherState {

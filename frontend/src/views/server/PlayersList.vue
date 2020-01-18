@@ -6,10 +6,11 @@
     </h2>
     <div class="list custom-scrollbar">
       <div
-        v-for="player of (hoverPlot ? hoverPlot.players : currentOnlinePlayers)"
+        v-for="player of displayedPlayers"
       >
         {{ player.name }} ({{ formatPlayerOnlineDuration((hoverPlot ? hoverPlot.time : timeEnd) - player.begin) }})
       </div>
+      <div v-if="displayedPlayers.length === 0">No players</div>
     </div>
   </v-flex>
 </template>
@@ -67,9 +68,13 @@
             .sort((player1, player2) => player1.begin - player2.begin);
       },
       title() {
+        const options = { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' };
         return this.hoverPlot
-            ? `Players at ${timeMinutesToDate(this.hoverPlot.time).toLocaleString()}`
+            ? `Players at ${timeMinutesToDate(this.hoverPlot.time).toLocaleString(undefined, options)}`
             : 'Current online players';
+      },
+      displayedPlayers() {
+        return this.hoverPlot ? this.hoverPlot.players : this.currentOnlinePlayers;
       },
     },
   };
