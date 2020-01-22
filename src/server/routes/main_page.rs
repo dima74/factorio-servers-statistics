@@ -49,9 +49,7 @@ pub fn search(query: String, state_lock: State<StateLock>) -> Json<Vec<GameSearc
         .skip(1)
         .rev()  // select top NUMBER_GAMES among latest ones
         .filter(|&game_id| query_regex.is_match(state.get_game_name(*game_id)))
-        .map(|&game_id| state.get_game(game_id))
-        .filter(|&game| game.server_id.is_some())
-        .map(|game| game.server_id.unwrap())
+        .map(|&game_id| state.get_game(game_id).server_id.unwrap())
         .unique()
         .take(NUMBER_GAMES)
         .map(|server_id| {

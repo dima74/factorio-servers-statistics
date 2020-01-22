@@ -23,7 +23,19 @@
       </v-flex>
     </v-layout>
     <v-layout class="mt-10">
-      <top-games-by-number-players :info="info" />
+      <v-flex xs1 />
+      <top-games-by-number-players :games="info.topGamesByNumberPlayersNow">
+        <template #title>Top current games by number players</template>
+        <template #row="{ game }">{{ game.numberPlayers }} players</template>
+      </top-games-by-number-players>
+      <v-flex xs2 />
+      <top-games-by-number-players :games="info.topGamesByNumberPlayersMax">
+        <template #title>Top games by maximum number players</template>
+        <template #row="{ game }">
+          {{ game.numberPlayers }} players at {{ timeMinutesToDate(game.time).toLocaleDateString() }}
+        </template>
+      </top-games-by-number-players>
+      <v-flex xs1 />
     </v-layout>
   </div>
   <v-layout align-center justify-center v-else>
@@ -58,6 +70,8 @@
       serversQuery: null,
       servers: [],
       serversLoading: false,
+
+      timeMinutesToDate,
     }),
     watch: {
       server(value) {

@@ -45,6 +45,20 @@ class GameSearchInfo {
   timeEnd?: TimeMinutes;
 }
 
+class TopGamesByNumberPlayersNow {
+  server_id: ServerId;
+  name: String;
+  number_players: number;
+}
+
+class TopGamesByNumberPlayersMax {
+  server_id: ServerId;
+  name: String;
+  number_players: number;
+  time: TimeMinutes;
+}
+
 class MainPageInfo {
-  // todo
+  topGamesByNumberPlayersNow: TopGamesByNumberPlayersNow[];
+  topGamesByNumberPlayersMax: TopGamesByNumberPlayersMax[];
 }

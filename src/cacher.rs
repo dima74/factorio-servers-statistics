@@ -2,24 +2,34 @@ use std::cmp::Reverse;
 use std::sync::Arc;
 use std::time::Duration;
 
+use itertools::Itertools;
 use parking_lot::RwLock;
 use serde::Serialize;
 
-use crate::state::{ServerId, State, StateLock};
+use crate::state::{ServerId, State, StateLock, TimeMinutes};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TopCurrentGameByNumberPlayers {
+pub struct TopGameByNumberPlayersNow {
     pub server_id: ServerId,
     pub name: String,
-    pub number_players: u32,
+    pub number_players: usize,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TopGameByNumberPlayersMax {
+    pub server_id: ServerId,
+    pub name: String,
+    pub number_players: usize,
+    pub time: TimeMinutes,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct MainPageInfo {
-    top_current_games_by_number_players: Vec<TopCurrentGameByNumberPlayers>,
-    
+    top_games_by_number_players_now: Vec<TopGameByNumberPlayersNow>,
+    top_games_by_number_players_max: Vec<TopGameByNumberPlayersMax>,
 }
 
 pub struct CacherState {
@@ -30,7 +40,8 @@ pub struct CacherState {
 impl CacherState {
     pub fn new() -> Self {
         let main_page = MainPageInfo {
-            top_current_games_by_number_players: Vec::new(),
+            top_games_by_number_players_now: Vec::new(),
+            top_games_by_number_players_max: Vec::new(),
         };
         Self {
             main_page,
@@ -48,7 +59,8 @@ pub fn cacher(cacher_state_lock: CacherStateLock, state_lock: StateLock) {
     for i in 0.. {
         println!("[info]  [cacher] start iteration #{}", i);
 
-        update_current_top_games_by_number_players(&state_lock.read(), &cacher_state_lock);
+        update_top_games_by_number_players_current(&state_lock.read(), &cacher_state_lock);
+        update_top_games_by_number_players_maximum(&state_lock.read(), &cacher_state_lock);
 
         {
             let mut cacher_state = cacher_state_lock.write();
@@ -61,26 +73,60 @@ pub fn cacher(cacher_state_lock: CacherStateLock, state_lock: StateLock) {
     println!("[info]  [cacher] exit");
 }
 
-fn update_current_top_games_by_number_players(state: &State, cacher_state_lock: &CacherStateLock) {
+fn get_top_n<T, F, K>(mut values: Vec<T>, n: usize, get_key: F) -> Vec<T>
+    where F: Fn(&T) -> K, K: Ord
+{
+    if values.len() > n {
+        values.partition_at_index_by_key(n - 1, &get_key);
+        values.truncate(n);
+    }
+    values.sort_by_key(get_key);
+    values
+}
+
+fn update_top_games_by_number_players_current(state: &State, cacher_state_lock: &CacherStateLock) {
     const TOP_SIZE: usize = 10;
 
-    let mut pairs: Vec<_> = state.current_game_ids.iter()
+    let pairs = state.current_game_ids.iter()
         .map(|&game_id| state.get_game(game_id))
         .filter(|game| game.server_id.is_some())
-        .map(|game| (game, game.number_players_online() as u32))
+        .map(|game| (game, game.number_players_online()))
         .collect();
-    if pairs.len() > TOP_SIZE {
-        pairs.partition_at_index_by_key(TOP_SIZE - 1, |(_, number_players)| Reverse(*number_players));
-        pairs.truncate(TOP_SIZE);
-    }
-    pairs.sort_by_key(|(_, number_players)| Reverse(*number_players));
+    let pairs = get_top_n(pairs, TOP_SIZE, |(_, number_players)| Reverse(*number_players));
 
     let top_games = pairs.into_iter()
-        .map(|(game, number_players)| TopCurrentGameByNumberPlayers {
+        .map(|(game, number_players)| TopGameByNumberPlayersNow {
             server_id: game.server_id.unwrap(),
             name: state.get_game_name(game.game_id).to_owned(),
             number_players,
         })
         .collect();
-    cacher_state_lock.write().main_page.top_current_games_by_number_players = top_games;
+    cacher_state_lock.write().main_page.top_games_by_number_players_now = top_games;
+}
+
+// todo топ-4 игры по сути имеют одинаковый server_id
+//  разобраться почему он разны
+fn update_top_games_by_number_players_maximum(state: &State, cacher_state_lock: &CacherStateLock) {
+    const TOP_SIZE: usize = 10;
+
+    let pairs = state.game_ids.iter().skip(1)
+        .map(|&game_id| {
+            let game = state.get_game(game_id);
+            (game.server_id.unwrap(), game.maximum_number_players())
+        })
+        .into_group_map();
+    let pairs = pairs.into_iter()
+        .map(|(server_id, values)| (server_id, values.into_iter().max().unwrap()))
+        .collect();
+    let pairs = get_top_n(pairs, TOP_SIZE, |(_, number_players)| Reverse(*number_players));
+
+    let top_games = pairs.into_iter()
+        .map(|(server_id, (number_players, time))| TopGameByNumberPlayersMax {
+            server_id,
+            name: state.get_server_name(server_id).to_owned(),
+            number_players,
+            time,
+        })
+        .collect();
+    cacher_state_lock.write().main_page.top_games_by_number_players_max = top_games;
 }

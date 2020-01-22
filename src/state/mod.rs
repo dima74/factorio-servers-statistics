@@ -88,7 +88,7 @@ pub struct Game {
     pub prev_game_id: Option<GameId>,
     pub next_game_id: Option<GameId>,
     // полуинтервал: [time_begin, time_end)
-    // todo добавить куда-нибудь проверку, что интервалы соседных игр перекрываются не более чем на 10-15 минут
+    // todo добавить куда-нибудь проверку, что интервалы соседних игр перекрываются не более чем на 10-15 минут
     pub time_begin: TimeMinutes,
     pub time_end: Option<TimeMinutes>,
 
@@ -120,6 +120,36 @@ impl Game {
             .map(|index| index + 1)
             .unwrap_or(0);
         self.players_intervals.len() - first_online_player_index
+    }
+
+    pub fn maximum_number_players(&self) -> (usize, TimeMinutes) {
+        #[derive(Ord, PartialOrd, Eq, PartialEq)]
+        enum EventType { Begin, End }
+
+        let now = TimeMinutes::now();
+        let mut events = Vec::with_capacity(self.players_intervals.len() * 2);
+        for player_interval in &self.players_intervals {
+            events.push((player_interval.begin, EventType::Begin));
+            events.push((player_interval.end.unwrap_or(now), EventType::End));
+        }
+        events.sort();
+
+        let mut current_number_players = 0;
+        let mut maximum_number_players = 0;
+        let mut result_time = TimeMinutes::new(1 /* fake value */).unwrap();
+        for (time, event_type) in events {
+            if event_type == EventType::Begin {
+                current_number_players += 1
+            } else {
+                current_number_players -= 1
+            };
+            if current_number_players >= maximum_number_players {
+                maximum_number_players = current_number_players;
+                result_time = time;
+            }
+        }
+
+        (maximum_number_players, result_time)
     }
 
     pub fn number_players_all(&self) -> usize {
@@ -182,6 +212,11 @@ impl State {
     pub fn get_game_name(&self, id: GameId) -> &str {
         let game = self.get_game(id);
         self.all_game_names.get(game.name).into()
+    }
+
+    pub fn get_server_name(&self, id: ServerId) -> &str {
+        let game_id = self.get_server_last_game_id(id);
+        self.get_game_name(game_id)
     }
 
     pub fn as_server_id(&self, id: usize) -> Option<ServerId> {

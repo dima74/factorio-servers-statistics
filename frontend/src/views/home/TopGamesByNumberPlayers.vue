@@ -1,15 +1,20 @@
 <template>
   <v-flex xs4 class="top-games-by-players">
-    <h2 class="title mb-5 text-center">Top current games by number players</h2>
+    <h2 class="title mb-5 text-center">
+      <slot name="title"></slot>
+    </h2>
+    <!-- todo кастомизация ссылки для учёта даты -->
     <router-link
       v-ripple
       class="line pa-2"
-      v-for="game of info.topCurrentGamesByNumberPlayers"
+      v-for="game of games"
       :key="game.serverId"
       :to="`/server/${game.serverId}`"
     >
       <span class="rich-text mr-2" v-html="transformRichText(game.name)"></span>
-      <span class="number-players">({{ game.numberPlayers }})</span>
+      <div class="number-players">
+        <slot name="row" :game="game"></slot>
+      </div>
     </router-link>
   </v-flex>
 </template>
@@ -36,6 +41,6 @@
 <script lang="ts">
   export default {
     name: 'TopGamesByNumberPlayers',
-    props: ['info'],
+    props: ['games'],
   };
 </script>
