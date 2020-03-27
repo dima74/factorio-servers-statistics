@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use std::num::NonZeroU32;
 
+use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 
 // todo documentation

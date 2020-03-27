@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use hashbrown::HashSet;
 
 /// https://github.com/avian2/pylog2rotate
 

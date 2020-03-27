@@ -12,7 +12,7 @@ use std::time::Duration;
 use clap::{App, value_t};
 use parking_lot::RwLock;
 
-use fss::{analytics, api, cacher, external_storage, fetcher_get_game_details, fetcher_get_games, fetcher_get_games_offline, state, yandex_cloud_storage};
+use fss::{analytics, api, cacher, external_storage, fetcher_get_game_details, fetcher_get_games, fetcher_get_games_offline, state, util, yandex_cloud_storage};
 use fss::external_storage::SaverEvent;
 use fss::global_config::GLOBAL_CONFIG;
 use fss::state::StateLock;
@@ -66,6 +66,7 @@ fn main() {
         "fetch_all_states" => fetch_all_states(),
         "fetch_latest_state_as_is" => fetch_latest_state_as_is(),
         "recompress_backups" => external_storage::recompress_backups().unwrap(),
+        "print_state_heap_size" => print_state_heap_size(),
         "temp" => temp(),
         _ => panic!("unknown <TYPE> option"),
     };
@@ -271,7 +272,7 @@ fn create_state_from_saved_data(number_responses: u32) {
 
     let number_games_with_prev_game_id = state.games.values().filter(|game| game.prev_game_id.is_some()).count();
     dbg!(number_games_with_prev_game_id);
-    assert!(number_games_with_prev_game_id != 0);
+    assert_ne!(number_games_with_prev_game_id, 0);
 
     let fetcher_get_game_details_state = fetcher_get_game_details_state_lock.read();
     let filename = format!("temp/state-offline/{}/state.bin.xz", number_responses);
@@ -341,6 +342,14 @@ fn fetch_all_states() {
         let filename = format!("temp/backup/state-from-yandex-cloud/{}", path_basename);
         yandex_cloud_storage::download_to_file(&path, Path::new(&filename)).unwrap();
     }
+}
+
+fn print_state_heap_size() {
+    let whole_state = external_storage::load_state_from_file(DEBUG_STATE_FILE);
+    util::print_heap_stats();
+
+    drop(whole_state);
+    util::print_heap_stats();
 }
 
 fn temp() {}

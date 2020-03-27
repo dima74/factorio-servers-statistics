@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::error::Error;
 use std::fs::File;
 use std::num::NonZeroU32;
@@ -7,6 +7,7 @@ use std::sync::{Arc, mpsc};
 use std::thread;
 use std::time::Duration;
 
+use hashbrown::HashMap;
 use itertools::Itertools;
 use parking_lot::RwLock;
 

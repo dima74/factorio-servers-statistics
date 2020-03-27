@@ -1,8 +1,9 @@
 #![allow(warnings)]
 
-use crate::external_storage::WholeState;
+use hashbrown::HashSet;
 use itertools::Itertools;
-use std::collections::HashSet;
+
+use crate::external_storage::WholeState;
 
 pub fn analytics(whole_state: WholeState) {
     let state = whole_state.state;
@@ -29,6 +30,17 @@ pub fn analytics(whole_state: WholeState) {
             .map(|merge_info| merge_info.game_ids.len())
             .sum();
         println!("scheduled to merge game_ids: {:?}", number_game_ids_to_merge)
+    }
+
+    {
+        let number_player_interval_objects: usize = state.games.values()
+            .map(|game| game.players_intervals.len())
+            .sum();
+        let number_mod_objects: usize = state.games.values()
+            .map(|game| game.mods.as_deref().map_or(0, |mods| mods.len()))
+            .sum();
+        println!("number_player_interval_objects: {:?}", number_player_interval_objects);
+        println!("number_mod_objects: {:?}", number_mod_objects);
     }
 
     // распределение длительности отдельных game_id

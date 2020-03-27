@@ -1,10 +1,10 @@
-use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::ops::Deref;
 use std::sync::{Arc, mpsc};
 use std::time::Duration;
 
+use hashbrown::{HashMap, HashSet};
 use itertools::Itertools;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};

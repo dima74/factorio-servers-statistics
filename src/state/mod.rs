@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -153,7 +153,7 @@ impl Game {
     }
 
     pub fn number_players_all(&self) -> usize {
-        use std::collections::HashSet;
+        use hashbrown::HashSet;
 
         self.players_intervals.iter()
             .map(|player_interval| player_interval.player_index)
@@ -322,7 +322,9 @@ mod tests {
 
     #[test]
     fn sizes() {
-        assert_eq!(std::mem::size_of::<PlayerInterval>(), 12);
-        assert_eq!(std::mem::size_of::<Option<ServerId>>(), 4);
+        use std::mem::size_of;
+        assert_eq!(size_of::<PlayerInterval>(), 12);
+        assert_eq!(size_of::<Option<ServerId>>(), 4);
+        assert_eq!(size_of::<Game>(), 136);
     }
 }
