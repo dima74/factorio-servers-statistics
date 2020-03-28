@@ -72,16 +72,7 @@ fn convert_game(game: &state::Game, state: &State, time_begin: TimeMinutes, time
     }
 }
 
-//impl<'a> FromParam<'a> for NonZeroU32 {
-//    type Error = &'a RawStr;
-//
-//    fn from_param(param: &'a RawStr) -> Result<Self, Self::Error> {
-//        NonZeroU32::from_str(param.as_str()).map_err(|_| param)
-//    }
-//}
-
 #[get("/server/<server_id>?<time_begin>&<time_end>")]
-//pub fn get_server_info(server_id: ServerId, state_lock: rocket::State<StateLock>) -> Option<Json<Server>> {
 pub fn get_server_info(
     server_id: usize,
     time_begin: Option<u32>,
@@ -90,7 +81,6 @@ pub fn get_server_info(
 ) -> Option<Json<Server>> {
     let state = state_lock.read();
 
-    // todo update rocket
     let server_id: ServerId = state.as_server_id(server_id)?;
     let time_begin = TimeMinutes::new(time_begin.unwrap_or(1))?;
     let time_end = TimeMinutes::new(time_end.unwrap_or(u32::max_value()))?;

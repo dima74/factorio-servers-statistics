@@ -72,8 +72,11 @@ pub fn get_last_state_path() -> Option<String> {
 }
 
 pub fn fetch_state() -> WholeState {
+    use tokio::runtime::Runtime;
+
     let path = get_last_state_path().unwrap();
-    let mut reader = yandex_cloud_storage::download(&path)
+    let mut runtime = Runtime::new().unwrap();
+    let mut reader = yandex_cloud_storage::download(&mut runtime, &path)
         .expect(&format!("Couldn't download {} object from Yandex.Cloud", path));
     let reader = compression::new_decoder(&mut reader, &path);
 
@@ -129,8 +132,7 @@ pub fn save_state(
     let key = chrono::Utc::now().timestamp() / 3600;
     let path = key_to_path(key as u64);
     println!("[info]  [saver] start uploading state with path `{}`", path);
-    // todo retry
-    yandex_cloud_storage::upload(&path, Path::new(TEMPORARY_STATE_FILE), CONTENT_TYPE);
+    yandex_cloud_storage::upload_with_retries(&path, Path::new(TEMPORARY_STATE_FILE), CONTENT_TYPE, 5);
 }
 
 pub fn saver(
@@ -187,7 +189,7 @@ pub fn recompress_backups() -> Result<(), Box<dyn Error>> {
         let mut writer = compression::new_encoder(&mut writer, &path_xz);
 
         std::io::copy(&mut reader, &mut writer)?;
-        yandex_cloud_storage::upload(&path_xz, Path::new(TEMPORARY_XZ_FILE_FOR_RECOMPRESS), CONTENT_TYPE);
+        yandex_cloud_storage::upload_with_retries(&path_xz, Path::new(TEMPORARY_XZ_FILE_FOR_RECOMPRESS), CONTENT_TYPE, 10);
 
         yandex_cloud_storage::delete(&path_lz4)?;
     }

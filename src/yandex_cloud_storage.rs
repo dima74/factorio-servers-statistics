@@ -5,8 +5,14 @@ use std::path::Path;
 
 use rusoto_core::RusotoError;
 use rusoto_s3::{DeleteObjectRequest, GetObjectRequest, ListObjectsV2Request, PutObjectRequest, S3, S3Client, StreamingBody};
+use tokio::runtime::Runtime;
 
 use lazy_static::lazy_static;
+
+use crate::util;
+
+#[cfg(test)]
+mod tests;
 
 const BUCKET: &str = "factorio-servers-statistics";
 
@@ -23,9 +29,7 @@ impl YandexCloud {
         };
         let s3_client = S3Client::new_with(rusoto_core::HttpClient::new().unwrap(), credentials_provider, region);
 
-        YandexCloud {
-            s3_client,
-        }
+        YandexCloud { s3_client }
     }
 }
 
@@ -39,11 +43,13 @@ pub fn list_bucket(path: &str) -> Vec<String> {
         path.push('/');
     }
 
-    let result = YANDEX_CLOUD.s3_client.list_objects_v2(ListObjectsV2Request {
+    let list_request = ListObjectsV2Request {
         bucket: "factorio-servers-statistics".to_owned(),
         prefix: Some(path.to_owned()),
         ..Default::default()
-    }).sync()
+    };
+    let mut runtime = Runtime::new().unwrap();
+    let result = runtime.block_on(YANDEX_CLOUD.s3_client.list_objects_v2(list_request))
         .unwrap_or_else(|err| panic!(format!(
             "[error] [yandex_cloud] Can't list bucket `{}`: {}", path, err)));
 
@@ -53,24 +59,25 @@ pub fn list_bucket(path: &str) -> Vec<String> {
         .collect()
 }
 
-fn get_rusoto_streaming_body(filename: &Path) -> (StreamingBody, u64) {
-    let file = std::fs::File::open(filename).unwrap();
-    file.sync_all().unwrap();
-    let file_length = file.metadata().unwrap().len();
+async fn get_rusoto_streaming_body(filename: &Path) -> (StreamingBody, u64) {
+    // https://users.rust-lang.org/t/turning-a-file-into-futures-stream/33480/6
+    // (old) https://github.com/rusoto/rusoto/issues/1509
+    // (old) https://stackoverflow.com/a/57812269/5812238
 
-    // https://github.com/rusoto/rusoto/issues/1509
-    // https://stackoverflow.com/a/57812269/5812238
-    use tokio::codec;
-    use tokio::prelude::Stream;
-    let file = tokio::fs::File::from_std(file);
-    let file = codec::FramedRead::new(file, codec::BytesCodec::new())
-        .map(|r| r.freeze());
+    use bytes::BytesMut;
+    use futures::TryStreamExt;
+    use tokio_util::codec::{BytesCodec, FramedRead};
 
-    (StreamingBody::new(file), file_length)
+    let file = tokio::fs::File::open(filename).await.unwrap();
+    let file_length = file.metadata().await.unwrap().len();
+
+    let stream = FramedRead::new(file, BytesCodec::new()).map_ok(BytesMut::freeze);
+    let streaming_body = StreamingBody::new(stream);
+    (streaming_body, file_length)
 }
 
-pub fn upload(path: &str, filename: &Path, content_type: &str) {
-    let (streaming_body, file_length) = get_rusoto_streaming_body(filename);
+async fn upload_async(path: &str, filename: &Path, content_type: &str) -> Result<(), Box<dyn Error>> {
+    let (streaming_body, file_length) = get_rusoto_streaming_body(filename).await;
     let put_request = PutObjectRequest {
         bucket: BUCKET.to_owned(),
         key: path.to_string(),
@@ -81,26 +88,44 @@ pub fn upload(path: &str, filename: &Path, content_type: &str) {
         ..Default::default()
     };
 
-    let result = YANDEX_CLOUD.s3_client.put_object(put_request).sync();
+    let result = YANDEX_CLOUD.s3_client.put_object(put_request).await;
     if let Err(err) = &result {
         eprintln!("[error] [yandex_cloud] Can't upload: {}", err);
         if let RusotoError::Unknown(err) = err {
             eprintln!("[error] [yandex_cloud] Can't upload: {:?}", err.body);
         }
-
-        // todo
-        result.unwrap();
     }
+    result?;
+    Ok(())
 }
 
-pub fn download(path: &str) -> Result<impl io::Read, Box<dyn Error>> {
+pub fn upload(path: &str, filename: &Path, content_type: &str) -> Result<(), Box<dyn Error>> {
+    let mut runtime = Runtime::new().unwrap();
+    runtime.block_on(upload_async(path, filename, content_type))
+}
+
+pub fn upload_with_retries(path: &str, filename: &Path, content_type: &str, number_retries: usize) {
+    util::run_with_retries(
+        number_retries,
+        || upload(path, filename, content_type),
+        |retry_index, response| {
+            eprintln!("[error] [yandex_cloud] upload failed (retry_index = {}):\n\tpath: {}\n\terror message: {}",
+                      retry_index, path, response);
+        },
+    ).unwrap();
+}
+
+/// если создавать runtime внутри функции download,
+/// то он будет уничтожен (drop) после выхода из функции
+/// и поэтому почему-то файл будет обрезан до первых ~4-8КБ
+pub fn download(runtime: &mut Runtime, path: &str) -> Result<impl io::Read, Box<dyn Error>> {
     let get_request = GetObjectRequest {
         bucket: BUCKET.to_owned(),
         key: path.to_owned(),
         ..Default::default()
     };
 
-    let result = YANDEX_CLOUD.s3_client.get_object(get_request).sync()?;
+    let result = runtime.block_on(YANDEX_CLOUD.s3_client.get_object(get_request))?;
     Ok(result.body.ok_or("no body")?.into_blocking_read())
 }
 
@@ -110,12 +135,15 @@ pub fn delete(path: &str) -> Result<(), Box<dyn Error>> {
         key: path.to_owned(),
         ..Default::default()
     };
-    YANDEX_CLOUD.s3_client.delete_object(delete_request).sync()?;
+
+    let mut runtime = Runtime::new().unwrap();
+    runtime.block_on(YANDEX_CLOUD.s3_client.delete_object(delete_request))?;
     Ok(())
 }
 
 pub fn download_to_file(path: &str, filename: &Path) -> Result<(), Box<dyn Error>> {
-    let mut reader = download(path)?;
+    let mut runtime = Runtime::new().unwrap();
+    let mut reader = download(&mut runtime, path)?;
     let mut writer = File::create(filename)?;
 
     std::io::copy(&mut reader, &mut writer)?;

@@ -3,6 +3,7 @@
 #![feature(decl_macro)]
 
 use std::{fs, thread};
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::{Arc, mpsc};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -344,11 +345,19 @@ fn fetch_all_states() {
     }
 }
 
+// #[global_allocator]
+// static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 fn print_state_heap_size() {
-    let whole_state = external_storage::load_state_from_file(DEBUG_STATE_FILE);
+    let mut whole_state = external_storage::load_state_from_file(DEBUG_STATE_FILE);
     util::print_heap_stats();
 
+    let mut games = BTreeMap::new();
+    std::mem::swap(&mut whole_state.state.games, &mut games);
     drop(whole_state);
+    util::print_heap_stats();
+
+    drop(games);
     util::print_heap_stats();
 }
 

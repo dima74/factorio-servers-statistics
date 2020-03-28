@@ -3,12 +3,12 @@ use std::error::Error;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::time::Duration;
 
 use reqwest::StatusCode;
 use serde::{de, Deserialize, Serialize};
 
 use crate::global_config::GLOBAL_CONFIG;
+use crate::util;
 
 pub type GetGamesResponse = Vec<Game>;
 pub type GetGameDetailsResponse = Game;
@@ -99,32 +99,28 @@ fn check_response(game: &Game, is_get_games_response: bool) {
 
 const API_BASE_URL: &str = "https://multiplayer.factorio.com";
 
-fn reqwest_get(url: &str) -> Result<String, Box<dyn Error>> {
-    let mut response = reqwest::get(url)?;
-    let response_text = response.text()?;
-    if !response.status().is_success() {
+fn reqwest_get(url: &str) -> Result<String, impl Error> {
+    let response = reqwest::blocking::get(url)?;
+
+    if let Err(err) = response.error_for_status_ref() {
+        let response_text = response.text()?;
         eprintln!("[error] [api] request failed: response text is `{}`", response_text);
+        return Err(err);
     }
-    response.error_for_status()?;
+
+    let response_text = response.text()?;
     Ok(response_text)
 }
 
-fn reqwest_get_with_retries(url: &str, number_retries: usize) -> Result<String, Box<dyn Error>> {
-    assert!(number_retries >= 1);
-    for request_index in 0..number_retries {
-        match reqwest_get(url) {
-            response @ Ok(_) => return response,
-            Err(response) => {
-                eprintln!("[error] [api] request failed (retry_index = {}):\n\turl: {}\n\terror message: {}", request_index, url, response);
-                std::thread::sleep(Duration::from_secs(f32::powf(1.5, request_index as f32) as u64));
-
-                if request_index + 1 == number_retries {
-                    return Err(response);
-                }
-            }
-        }
-    }
-    unreachable!()
+fn reqwest_get_with_retries(url: &str, number_retries: usize) -> Result<String, impl Error> {
+    util::run_with_retries(
+        number_retries,
+        || reqwest_get(url),
+        |retry_index, response| {
+            eprintln!("[error] [api] request failed (retry_index = {}):\n\turl: {}\n\terror message: {}",
+                      retry_index, url, response);
+        },
+    )
 }
 
 pub fn get_games() -> GetGamesResponse {
@@ -156,11 +152,11 @@ pub fn clean_get_games_response(games: &mut Vec<Game>) {
 
 // Ok(None) означает ошибку 404
 fn reqwest_get_and_check_for_404(url: &str) -> Result<Option<String>, Box<dyn Error>> {
-    let response = reqwest::get(url)?;
+    let response = reqwest::blocking::get(url)?;
     if response.status() == StatusCode::NOT_FOUND {
         return Ok(None);
     }
-    let mut response = response.error_for_status()?;
+    let response = response.error_for_status()?;
     let response_text = response.text()?;
     Ok(Some(response_text))
 }
