@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::error::Error;
 use std::fs::File;
 use std::num::NonZeroU32;
@@ -39,7 +39,7 @@ pub fn get_empty_state() -> WholeState {
     // нужно так как ServerId это NonZeroU32
     let dummy_first_game_id = NonZeroU32::new(std::u32::MAX).unwrap();
     let state = State {
-        games: HashMap::new(),
+        games: BTreeMap::new(),
         game_ids: vec![dummy_first_game_id],
         current_game_ids: vec![],
         all_game_names: BigString::new(),

@@ -1,4 +1,4 @@
-use hashbrown::HashMap;
+use std::collections::BTreeMap;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -184,7 +184,7 @@ pub type StateLock = Arc<RwLock<State>>;
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct State {
-    pub games: HashMap<GameId, Game>,
+    pub games: BTreeMap<GameId, Game>,
     // индексы — ServerId, значения — последний GameId для данного ServerId
     // game_ids[0] == u32::MAX
     pub game_ids: Vec<GameId>,

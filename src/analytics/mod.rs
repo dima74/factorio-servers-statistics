@@ -1,9 +1,10 @@
 #![allow(warnings)]
 
-use hashbrown::HashSet;
+use hashbrown::{HashMap, HashSet};
 use itertools::Itertools;
 
 use crate::external_storage::WholeState;
+use crate::state::State;
 
 pub fn analytics(whole_state: WholeState) {
     let state = whole_state.state;
@@ -75,6 +76,8 @@ pub fn analytics(whole_state: WholeState) {
         print_histogram(unique_players_count);
     }
 
+    print_average_number_new_games_per_day(&state);
+
 //    посчитать число game_id достижимых если идти по prev_game_id от одного из серверов (state.game_ids)
 //    подумать что делать с играми, которые исчезают почти сразу после появления (проверить что их 30% --- столько игр без server_id)
 
@@ -105,6 +108,21 @@ pub fn analytics(whole_state: WholeState) {
     }
 }
 
+fn print_average_number_new_games_per_day(state: &State) {
+    const DAY_IN_MINUTES: u32 = 24 * 60;
+    type Day = u32;
+
+    let mut counts: HashMap<Day, u64> = HashMap::new();
+    for game in state.games.values() {
+        let time_begin = game.time_begin;
+        let day_begin: Day = time_begin.get() / DAY_IN_MINUTES;
+        counts.insert(day_begin, 1 + counts.get(&day_begin).unwrap_or(&0));
+    }
+
+    println!("\taverage number new games per day:");
+    print_histogram(counts.values().copied());
+}
+
 fn print_histogram(values: impl Iterator<Item=u64>) {
     use histogram::Histogram;
 
@@ -125,4 +143,5 @@ fn print_histogram(values: impl Iterator<Item=u64>) {
              histogram.mean().unwrap(),
              histogram.maximum().unwrap(),
     );
+    println!();
 }
