@@ -12,7 +12,7 @@ use crate::api;
 use crate::global_config::GLOBAL_CONFIG;
 use crate::state::{GameId, Mod, StateLock};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Eq, PartialEq)]
 pub struct State {
     pub game_ids: VecDeque<GameId>,
 }

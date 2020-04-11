@@ -7,6 +7,8 @@ use parking_lot::RwLock;
 use crate::{api, external_storage, state};
 use crate::state::{GameId, Mod, StateLock, TimeMinutes, updater};
 
+mod serialization;
+
 pub fn fetcher_get_game_details(receiver: mpsc::Receiver<GameId>, state_lock: StateLock) {
     let mut state = state_lock.write();
     let host_address = state.all_host_addresses.add("fake_host_address");

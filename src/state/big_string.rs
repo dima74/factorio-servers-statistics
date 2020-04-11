@@ -4,7 +4,7 @@ use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 
 // todo documentation
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Eq, PartialEq)]
 pub struct BigString {
     #[serde(skip)]
     debug_name: String,

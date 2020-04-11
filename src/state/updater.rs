@@ -31,7 +31,7 @@ use crate::state::{Game, GameId, HostId, PlayerInterval, State, StateLock, TimeM
 //    }
 //}
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Eq, PartialEq)]
 pub struct UpdaterState {
     pub scheduled_to_merge_host_ids: HashMap<HostId, HostIdMergeInfo>,
 }
@@ -124,7 +124,7 @@ fn update_game(game_snapshot: &api::Game, state: &mut State, time: TimeMinutes) 
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Eq, PartialEq)]
 pub struct HostIdMergeInfo {
     // время первого события появлении/исчезновении game_id
     pub time_begin: TimeMinutes,

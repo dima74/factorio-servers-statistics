@@ -277,7 +277,7 @@ fn create_state_from_saved_data(number_responses: u32) {
     let fetcher_get_game_details_state = fetcher_get_game_details_state_lock.read();
     let filename = format!("temp/state-offline/{}/state.bin.xz", number_responses);
     fs::create_dir_all(Path::new(&filename).parent().unwrap()).unwrap();
-    external_storage::save_state_to_file(&updater_state, &state, &fetcher_get_game_details_state, &filename);
+    external_storage::save_state_to_file((&updater_state, &state, &fetcher_get_game_details_state), &filename);
 }
 
 fn create_state(number_responses: u32) {
@@ -313,26 +313,24 @@ fn create_state(number_responses: u32) {
     let fetcher_get_game_details_state = fetcher_get_game_details_state_lock.read();
     let filename = format!("temp/state-online/{}/state.bin.xz", number_responses);
     fs::create_dir_all(Path::new(&filename).parent().unwrap()).unwrap();
-    external_storage::save_state_to_file(&updater_state, &state, &fetcher_get_game_details_state, &filename);
+    external_storage::save_state_to_file((&updater_state, &state, &fetcher_get_game_details_state), &filename);
 }
 
 fn convert_state() {
     let whole_state = external_storage::load_state_from_file(DEBUG_STATE_FILE);
-    external_storage::save_state_to_file(&whole_state.updater_state, &whole_state.state,
-                                         &whole_state.fetcher_get_game_details_state, DEBUG_STATE_FILE);
+    external_storage::save_state_to_file(whole_state.deref(), DEBUG_STATE_FILE);
 }
 
 fn fetch_latest_state() {
     let mut whole_state = external_storage::fetch_state();
     whole_state.state.compress_big_strings();
-    external_storage::save_state_to_file(&whole_state.updater_state, &whole_state.state,
-                                         &whole_state.fetcher_get_game_details_state, DEBUG_STATE_FILE);
+    external_storage::save_state_to_file(whole_state.deref(), DEBUG_STATE_FILE);
 }
 
 fn fetch_latest_state_as_is() {
-    let path = external_storage::get_last_state_path().unwrap();
-    let filename = format!("temp/state/{}", basename(&path));
-    yandex_cloud_storage::download_to_file(&path, Path::new(&filename)).unwrap();
+    let state_path = external_storage::get_last_state_path().unwrap();
+    let filename = format!("temp/state/{}", basename(&state_path));
+    yandex_cloud_storage::download_to_file(&state_path, Path::new(&filename)).unwrap();
 }
 
 fn fetch_all_states() {

@@ -25,10 +25,19 @@ const TEMPORARY_LZ4_FILE_FOR_RECOMPRESS: &str = "state-recompress.bin.lz4";
 const TEMPORARY_XZ_FILE_FOR_RECOMPRESS: &str = "state-recompress.bin.xz";
 const CONTENT_TYPE: &str = "application/octet-stream";
 
+#[derive(Eq, PartialEq)]
 pub struct WholeState {
     pub updater_state: UpdaterState,
     pub state: State,
     pub fetcher_get_game_details_state: fetcher_get_game_details::State,
+}
+
+type WholeStateRef<'a> = (&'a UpdaterState, &'a State, &'a fetcher_get_game_details::State);
+
+impl WholeState {
+    pub fn deref(&self) -> WholeStateRef {
+        (&self.updater_state, &self.state, &self.fetcher_get_game_details_state)
+    }
 }
 
 pub fn get_empty_state() -> WholeState {
@@ -98,13 +107,8 @@ pub enum SaverEvent {
     SIGINT,
 }
 
-pub fn save_state_to_file(
-    updater_state: &UpdaterState,
-    state: &State,
-    fetcher_get_game_details_state: &fetcher_get_game_details::State,
-    filename: &str,
-) {
-    let data = (updater_state, state, fetcher_get_game_details_state);
+pub fn save_state_to_file(whole_state: WholeStateRef, filename: &str) {
+    let data = whole_state;
 
     let mut writer = File::create(filename).unwrap();
     let writer = compression::new_encoder(&mut writer, filename);
@@ -122,12 +126,8 @@ fn path_to_key(path: &str) -> Result<u64, std::num::ParseIntError> {
     path[start..end].parse()
 }
 
-pub fn save_state(
-    updater_state: &UpdaterState,
-    state: &State,
-    fetcher_get_game_details_state: &fetcher_get_game_details::State,
-) {
-    save_state_to_file(updater_state, state, fetcher_get_game_details_state, TEMPORARY_STATE_FILE);
+pub fn save_state(whole_state: WholeStateRef) {
+    save_state_to_file(whole_state, TEMPORARY_STATE_FILE);
 
     let key = chrono::Utc::now().timestamp() / 3600;
     let path = key_to_path(key as u64);
@@ -146,7 +146,7 @@ pub fn saver(
         let updater_state = updater_state_lock.read();
         let state = state_lock.read();
         let fetcher_get_game_details_state = fetcher_get_game_details_state_lock.read();
-        save_state(&updater_state, &state, &fetcher_get_game_details_state);
+        save_state((&updater_state, &state, &fetcher_get_game_details_state));
         println!("[info]  [saver] done");
         if event == SIGINT {
             println!("[info]  [saver] exit (finished)");

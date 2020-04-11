@@ -11,6 +11,7 @@ type KeyToIndexMap<K, V> = std::collections::BTreeMap<K, V>;
 
 // memory-efficient hash map designed for case when sizeof K is small (<20 bytes) and sizeof V is big (>40 bytes)
 // will be used for storing state.games (Key is GameId and has size 4, Value is Game and has size ~130)
+#[derive(Eq, PartialEq)]
 pub struct FssMap<K, V> {
     // todo consider using Vec<K> for keys (and add K: Ord)
     //  because currently we never remove games and new game has greater GameId than all previous games

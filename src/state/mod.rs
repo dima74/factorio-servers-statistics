@@ -47,14 +47,14 @@ pub type HostId = [u8; 32];
 #[derive(Copy, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct ServerId(NonZeroU32);
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Mod {
     pub name: BigStringPart,
     pub version: BigStringPart,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PlayerInterval {
     pub player_index: BigStringPart,
@@ -77,7 +77,7 @@ impl PlayerInterval {
 // в течении сессии метаинформация о сервере (название, версия, моды и т.д.) не должны меняться
 // ожидается, что сессия длится непрерывный отрезок по времени
 //     (однако по наблюдениям сессия может прерываться на очень большой промежуток времени, вплоть до ~30 часов)
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Game {
     pub game_id: GameId,
@@ -183,7 +183,7 @@ pub type StateLock = Arc<RwLock<State>>;
 // pub type GamesMap<K, V> = std::collections::BTreeMap<K, V>;
 pub type GamesMap<K, V> = crate::util::hash_map::FssMap<K, V>;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct State {
     pub games: GamesMap<GameId, Game>,
