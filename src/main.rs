@@ -3,7 +3,6 @@
 #![feature(decl_macro)]
 
 use std::{fs, thread};
-use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::{Arc, mpsc};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -349,14 +348,38 @@ fn fetch_all_states() {
 // static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 fn print_state_heap_size() {
+    // todo research why with FssHashMap games self size is 180MB
+    //  looks like that for some reason size of games.values is 20MB more than expected
+
+    // results:
+    //                   actual vs minimum
+    // games self           291 vs 132  (hashbrown::HashMap)
+    // games self           180 vs 132  (FssHashMap)
+    // mods                  87 vs 80
+    // player_intervals      36 vs 29
+
     let mut whole_state = external_storage::load_state_from_file(DEBUG_STATE_FILE);
     util::print_heap_stats();
 
-    let mut games = BTreeMap::new();
+    let mut games = state::GamesMap::new();
     std::mem::swap(&mut whole_state.state.games, &mut games);
     drop(whole_state);
+    println!("\tОбъём games:");
     util::print_heap_stats();
 
+    for game in games.values_mut() {
+        game.mods = None;
+    }
+    println!("\tОбъём games без mods:");
+    util::print_heap_stats();
+
+    for game in games.values_mut() {
+        game.players_intervals = Vec::new();
+    }
+    println!("\tОбъём games без mods и player_intervals:");
+    util::print_heap_stats();
+
+    dbg!(games.len());
     drop(games);
     util::print_heap_stats();
 }

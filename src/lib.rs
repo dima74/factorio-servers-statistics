@@ -3,6 +3,8 @@
 #![feature(slice_partition_at_index)]
 #![feature(type_ascription)]
 #![feature(div_duration)]
+#![feature(unboxed_closures)]
+#![feature(fn_traits)]
 
 pub mod api;
 pub mod external_storage;

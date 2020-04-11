@@ -4,12 +4,13 @@ use hashbrown::{HashMap, HashSet};
 use itertools::Itertools;
 
 use crate::external_storage::WholeState;
-use crate::state::State;
+use crate::state::{Game, Mod, PlayerInterval, State};
 
 pub fn analytics(whole_state: WholeState) {
     let state = whole_state.state;
     let updater_state = whole_state.updater_state;
 
+    println!("\tБазовая статистика:");
     println!("число наблюдаемых game_id: {}", state.games.len());
     println!("число наблюдаемых серверов: {}", state.game_ids.len());
     println!("game_ids_in_last_get_games_response.len(): {}", state.current_game_ids.len());
@@ -33,16 +34,29 @@ pub fn analytics(whole_state: WholeState) {
         println!("scheduled to merge game_ids: {:?}", number_game_ids_to_merge)
     }
 
+    // объём памяти занимаемый games (map из GameId в Game) в идеальном случае
     {
+        use std::mem::size_of;
+        const MB: usize = 1024 * 1024;
+
         let number_player_interval_objects: usize = state.games.values()
             .map(|game| game.players_intervals.len())
             .sum();
         let number_mod_objects: usize = state.games.values()
             .map(|game| game.mods.as_deref().map_or(0, |mods| mods.len()))
             .sum();
-        println!("number_player_interval_objects: {:?}", number_player_interval_objects);
-        println!("number_mod_objects: {:?}", number_mod_objects);
+        let size_player_interval_objects = number_player_interval_objects * size_of::<PlayerInterval>();
+        let size_mod_objects = number_mod_objects * size_of::<Mod>();
+        let number_games = state.games.len();
+        let size_games = number_games * size_of::<Game>();
+        println!("\n\tМинимально возможный объём памяти занимаемый games:");
+        println!("total PlayerInterval size: {}MB  (count={:?})", size_player_interval_objects / MB, number_player_interval_objects);
+        println!("total Mod size: {}MB  (count={:?})", size_mod_objects / MB, number_mod_objects);
+        println!("games self size = {}MB  (count={})", size_games / MB, number_games);
+        println!("total size = {}MB", (size_player_interval_objects + size_mod_objects + size_games) / MB);
     }
+
+    println!("\n\tРаспределения:");
 
     // распределение длительности отдельных game_id
     {

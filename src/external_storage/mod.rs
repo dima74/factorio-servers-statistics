@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::VecDeque;
 use std::error::Error;
 use std::fs::File;
 use std::num::NonZeroU32;
@@ -11,7 +11,7 @@ use hashbrown::HashMap;
 use itertools::Itertools;
 use parking_lot::RwLock;
 
-use crate::{fetcher_get_game_details, yandex_cloud_storage};
+use crate::{fetcher_get_game_details, state, yandex_cloud_storage};
 use crate::external_storage::SaverEvent::SIGINT;
 use crate::state::{BigString, State, StateLock};
 use crate::state::updater::UpdaterState;
@@ -39,7 +39,7 @@ pub fn get_empty_state() -> WholeState {
     // нужно так как ServerId это NonZeroU32
     let dummy_first_game_id = NonZeroU32::new(std::u32::MAX).unwrap();
     let state = State {
-        games: BTreeMap::new(),
+        games: state::GamesMap::new(),
         game_ids: vec![dummy_first_game_id],
         current_game_ids: vec![],
         all_game_names: BigString::new(),

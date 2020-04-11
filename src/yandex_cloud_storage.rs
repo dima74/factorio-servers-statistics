@@ -99,7 +99,7 @@ async fn upload_async(path: &str, filename: &Path, content_type: &str) -> Result
     Ok(())
 }
 
-pub fn upload(path: &str, filename: &Path, content_type: &str) -> Result<(), Box<dyn Error>> {
+fn upload(path: &str, filename: &Path, content_type: &str) -> Result<(), Box<dyn Error>> {
     let mut runtime = Runtime::new().unwrap();
     runtime.block_on(upload_async(path, filename, content_type))
 }
