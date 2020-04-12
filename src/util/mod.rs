@@ -1,3 +1,4 @@
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::time::{Duration, SystemTime};
 
 pub mod hash_map;
@@ -47,4 +48,14 @@ pub fn run_with_retries<R, E, F, H>(number_retries: usize, mut runnable: F, mut 
         }
     }
     unreachable!()
+}
+
+const BUFFER_SIZE: usize = 64 * 1024;  // 64KiB
+
+pub fn new_buf_reader(reader: impl Read) -> BufReader<impl Read> {
+    BufReader::with_capacity(BUFFER_SIZE, reader)
+}
+
+pub fn new_buf_writer(writer: impl std::io::Write) -> BufWriter<impl Write> {
+    BufWriter::with_capacity(BUFFER_SIZE, writer)
 }

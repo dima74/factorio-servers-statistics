@@ -10,6 +10,7 @@ use tokio::runtime::Runtime;
 use lazy_static::lazy_static;
 
 use crate::util;
+use crate::util::{new_buf_reader, new_buf_writer};
 
 #[cfg(test)]
 mod tests;
@@ -126,7 +127,9 @@ pub fn download(runtime: &mut Runtime, path: &str) -> Result<impl io::Read, Box<
     };
 
     let result = runtime.block_on(YANDEX_CLOUD.s3_client.get_object(get_request))?;
-    Ok(result.body.ok_or("no body")?.into_blocking_read())
+    let reader = result.body.ok_or("no body")?.into_blocking_read();
+    let reader = new_buf_reader(reader);  // todo is it necessary?
+    Ok(reader)
 }
 
 pub fn delete(path: &str) -> Result<(), Box<dyn Error>> {
@@ -144,7 +147,8 @@ pub fn delete(path: &str) -> Result<(), Box<dyn Error>> {
 pub fn download_to_file(path: &str, filename: &Path) -> Result<(), Box<dyn Error>> {
     let mut runtime = Runtime::new().unwrap();
     let mut reader = download(&mut runtime, path)?;
-    let mut writer = File::create(filename)?;
+    let writer = File::create(filename)?;
+    let mut writer = new_buf_writer(writer);
 
     std::io::copy(&mut reader, &mut writer)?;
     Ok(())

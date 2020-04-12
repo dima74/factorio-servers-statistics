@@ -15,6 +15,7 @@ use crate::{fetcher_get_game_details, state, yandex_cloud_storage};
 use crate::external_storage::SaverEvent::SIGINT;
 use crate::state::{BigString, State, StateLock};
 use crate::state::updater::UpdaterState;
+use crate::util::{new_buf_reader, new_buf_writer};
 
 mod backups;
 mod compression;
@@ -94,7 +95,8 @@ pub fn fetch_state() -> WholeState {
 }
 
 pub fn load_state_from_file(filename: &str) -> WholeState {
-    let mut reader = File::open(filename).unwrap();
+    let reader = File::open(filename).unwrap();
+    let mut reader = new_buf_reader(reader);
     let reader = compression::new_decoder(&mut reader, filename);
 
     let (updater_state, state, fetcher_get_game_details_state) = bincode::deserialize_from(reader).unwrap();
@@ -110,7 +112,8 @@ pub enum SaverEvent {
 pub fn save_state_to_file(whole_state: WholeStateRef, filename: &str) {
     let data = whole_state;
 
-    let mut writer = File::create(filename).unwrap();
+    let writer = File::create(filename).unwrap();
+    let mut writer = new_buf_writer(writer);
     let writer = compression::new_encoder(&mut writer, filename);
 
     bincode::serialize_into(writer, &data).unwrap();
@@ -182,10 +185,12 @@ pub fn recompress_backups() -> Result<(), Box<dyn Error>> {
 
         yandex_cloud_storage::download_to_file(&path_lz4, Path::new(TEMPORARY_LZ4_FILE_FOR_RECOMPRESS))?;
 
-        let mut reader = File::open(TEMPORARY_LZ4_FILE_FOR_RECOMPRESS)?;
+        let reader = File::open(TEMPORARY_LZ4_FILE_FOR_RECOMPRESS)?;
+        let mut reader = new_buf_reader(reader);
         let mut reader = compression::new_decoder(&mut reader, &path_lz4);
 
-        let mut writer = File::create(TEMPORARY_XZ_FILE_FOR_RECOMPRESS)?;
+        let writer = File::create(TEMPORARY_XZ_FILE_FOR_RECOMPRESS)?;
+        let mut writer = new_buf_writer(writer);
         let mut writer = compression::new_encoder(&mut writer, &path_xz);
 
         std::io::copy(&mut reader, &mut writer)?;
