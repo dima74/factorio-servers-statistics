@@ -117,7 +117,7 @@ fn reqwest_get_with_retries(url: &str, number_retries: usize) -> Result<String, 
         number_retries,
         || reqwest_get(url),
         |retry_index, response| {
-            eprintln!("[error] [api] request failed (retry_index = {}):\n\turl: {}\n\terror message: {}",
+            eprintln!("[warn]  [api] request failed (retry_index = {}):\n\turl: {}\n\terror message: {}",
                       retry_index, url, response);
         },
     )

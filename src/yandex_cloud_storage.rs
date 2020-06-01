@@ -91,9 +91,10 @@ async fn upload_async(path: &str, filename: &Path, content_type: &str) -> Result
 
     let result = YANDEX_CLOUD.s3_client.put_object(put_request).await;
     if let Err(err) = &result {
-        eprintln!("[error] [yandex_cloud] Can't upload: {}", err);
         if let RusotoError::Unknown(err) = err {
             eprintln!("[error] [yandex_cloud] Can't upload: {:?}", err.body);
+        } else {
+            eprintln!("[error] [yandex_cloud] Can't upload: {}", err);
         }
     }
     result?;
@@ -110,7 +111,7 @@ pub fn upload_with_retries(path: &str, filename: &Path, content_type: &str, numb
         number_retries,
         || upload(path, filename, content_type),
         |retry_index, response| {
-            eprintln!("[error] [yandex_cloud] upload failed (retry_index = {}):\n\tpath: {}\n\terror message: {}",
+            eprintln!("[warn]  [yandex_cloud] upload failed (retry_index = {}):\n\tpath: {}\n\terror message: {}",
                       retry_index, path, response);
         },
     ).unwrap();

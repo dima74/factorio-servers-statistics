@@ -156,7 +156,7 @@ fn run_production_pipeline() {
         let already_received_sigint = AtomicBool::new(false);
         ctrlc::set_handler(move || {
             if already_received_sigint.swap(true, Ordering::SeqCst) {
-                println!("[warn]  [sigint_handler] already received sigint");
+                eprintln!("[warn]  [sigint_handler] already received sigint");
                 return;
             }
             // .send() возвращает ошибку если receiver был уничтожен (deallocate), но у нас такого не может быть
