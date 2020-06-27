@@ -176,6 +176,26 @@ impl Game {
     pub fn are_details_fetched(&self) -> bool {
         self.host_address.is_some()
     }
+
+    pub fn prev_game<'a>(&self, state: &'a State) -> Option<&'a Game> {
+        self.prev_game_id.map(|id| state.get_game(id))
+    }
+
+    pub fn next_game<'a>(&self, state: &'a State) -> Option<&'a Game> {
+        self.next_game_id.map(|id| state.get_game(id))
+    }
+
+    pub fn get_mods<'a>(&'a self, state: &'a State) -> &'a Option<Vec<Mod>> {
+        if !self.are_details_fetched() { return &None; }
+        match (&self.mods, self.prev_game_id) {
+            (mods @ Some(_), _) => mods,
+            (None, Some(prev_game_id)) => {
+                let prev_game = state.get_game(prev_game_id);
+                prev_game.get_mods(state)
+            }
+            (None, None) => &None,
+        }
+    }
 }
 
 pub type StateLock = Arc<RwLock<State>>;
@@ -285,7 +305,12 @@ impl State {
         self.all_player_names.set_debug_name("player_names".to_owned());
     }
 
-    pub fn compress_big_strings(&mut self) {
+    pub fn compress(&mut self) {
+        self.compress_big_strings();
+        self.compress_mods();
+    }
+
+    fn compress_big_strings(&mut self) {
         self.set_debug_names();
 
         let map_names = self.all_game_names.compress();
@@ -314,6 +339,37 @@ impl State {
             for players_interval in &mut game.players_intervals {
                 players_interval.player_index = *map_player_names.get(&players_interval.player_index).unwrap();
             }
+        }
+    }
+
+    fn compress_mods(&mut self) {
+        // игры у которых такие же моды как у prev_game
+        let mut games_with_same_mods = Vec::new();
+        for prev_game in self.games.values() {
+            let prev_game_mods = &prev_game.mods;
+            match prev_game_mods {
+                Some(prev_game_mods) if prev_game_mods.is_empty() => continue,
+                None => continue,
+                _ => {}
+            }
+
+            let mut next_game_id = prev_game.next_game_id;
+            while let Some(game_id) = next_game_id {
+                let game = self.get_game(game_id);
+                next_game_id = game.next_game_id;
+
+                if game.mods.is_none() { continue; }
+                if &game.mods == prev_game_mods {
+                    games_with_same_mods.push(game_id);
+                }
+                break;
+            }
+        }
+
+        println!("[info]  [state] cleared mods in {} games", games_with_same_mods.len());
+        for game_id in games_with_same_mods {
+            let game = self.get_game_mut(game_id);
+            game.mods = None;
         }
     }
 }

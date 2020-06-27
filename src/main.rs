@@ -66,6 +66,7 @@ fn main() {
         "fetch_all_states" => fetch_all_states(),
         "fetch_latest_state_as_is" => fetch_latest_state_as_is(),
         "recompress_backups" => external_storage::recompress_backups().unwrap(),
+        "compress_state" => compress_state(),
         "print_state_heap_size" => print_state_heap_size(),
         "temp" => temp(),
         _ => panic!("unknown <TYPE> option"),
@@ -115,7 +116,7 @@ fn run_production_pipeline() {
 
     // state
     let mut whole_state = external_storage::fetch_state();
-    whole_state.state.compress_big_strings();
+    whole_state.state.compress();
     let updater_state_lock = Arc::new(RwLock::new(whole_state.updater_state));
     let state_lock = Arc::new(RwLock::new(whole_state.state));
     let fetcher_get_game_details_state_lock = Arc::new(RwLock::new(whole_state.fetcher_get_game_details_state));
@@ -323,7 +324,7 @@ fn convert_state() {
 
 fn fetch_latest_state() {
     let mut whole_state = external_storage::fetch_state();
-    whole_state.state.compress_big_strings();
+    whole_state.state.compress();
     external_storage::save_state_to_file(whole_state.deref(), DEBUG_STATE_FILE);
 }
 
@@ -342,6 +343,15 @@ fn fetch_all_states() {
     }
 }
 
+fn compress_state() {
+    let mut whole_state = external_storage::load_state_from_file(DEBUG_STATE_FILE);
+    util::print_heap_stats();
+
+    whole_state.state.compress();
+    println!("\tAfter compress:");
+    util::print_heap_stats();
+}
+
 // #[global_allocator]
 // static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
@@ -357,6 +367,7 @@ fn print_state_heap_size() {
     // player_intervals      36 vs 29
 
     let mut whole_state = external_storage::load_state_from_file(DEBUG_STATE_FILE);
+    println!("\tОбъём WholeState:");
     util::print_heap_stats();
 
     let mut games = state::GamesMap::new();
@@ -377,7 +388,7 @@ fn print_state_heap_size() {
     println!("\tОбъём games без mods и player_intervals:");
     util::print_heap_stats();
 
-    dbg!(games.len());
+    dbg!(games.len(), games.len() * std::mem::size_of::<state::Game>() / (1024 * 1024));
     drop(games);
     util::print_heap_stats();
 }

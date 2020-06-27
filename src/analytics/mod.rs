@@ -31,7 +31,31 @@ pub fn analytics(whole_state: WholeState) {
             .values()
             .map(|merge_info| merge_info.game_ids.len())
             .sum();
-        println!("scheduled to merge game_ids: {:?}", number_game_ids_to_merge)
+        println!("scheduled to merge game_ids: {:?}", number_game_ids_to_merge);
+    }
+
+    // mods
+    {
+        let mut number_matched_games = 0;
+        let mut number_matched_mods = 0;
+        for game in state.games.values() {
+            let prev_game_id = match game.prev_game_id {
+                Some(prev_game_id) => prev_game_id,
+                None => continue,
+            };
+            let prev_game = state.get_game(prev_game_id);
+            let (mods, prev_mods) = match (&game.mods, &prev_game.get_mods(&state)) {
+                (Some(mods), Some(prev_mods)) => (mods, prev_mods),
+                _ => continue,
+            };
+
+            if (mods == prev_mods && !mods.is_empty()) {
+                number_matched_games += 1;
+                number_matched_mods += mods.len();
+            }
+        }
+        println!("number games which has same mods as prev_game: {:?}", number_matched_games);
+        println!("number duplicated mods: {:?}", number_matched_mods);
     }
 
     // объём памяти занимаемый games (map из GameId в Game) в идеальном случае
