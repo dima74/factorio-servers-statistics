@@ -200,13 +200,13 @@ impl Game {
 
 pub type StateLock = Arc<RwLock<State>>;
 
-// pub type GamesMap<K, V> = std::collections::BTreeMap<K, V>;
-pub type GamesMap<K, V> = crate::util::hash_map::FssMap<K, V>;
+// pub type GamesMap = std::collections::BTreeMap<GameId, Game>;
+pub type GamesMap = crate::util::games_map::GamesMap;
 
 #[derive(Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct State {
-    pub games: GamesMap<GameId, Game>,
+    pub games: GamesMap,
     // индексы — ServerId, значения — последний GameId для данного ServerId
     // game_ids[0] == u32::MAX
     pub game_ids: Vec<GameId>,

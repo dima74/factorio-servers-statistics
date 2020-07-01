@@ -1,10 +1,7 @@
 #![feature(duration_constants)]
-#![feature(inner_deref)]
 #![feature(slice_partition_at_index)]
-#![feature(type_ascription)]
 #![feature(div_duration)]
-#![feature(unboxed_closures)]
-#![feature(fn_traits)]
+#![feature(type_alias_impl_trait)]
 
 pub mod api;
 pub mod external_storage;
