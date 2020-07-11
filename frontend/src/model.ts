@@ -10,8 +10,8 @@ class PlayerInterval {
 }
 
 class Mod {
-  name: String;
-  version: String;
+  name: string;
+  version: string;
 }
 
 class Game {
@@ -24,36 +24,36 @@ class Game {
 
   playersIntervals: PlayerInterval[];
 
-  hostId: String;
-  name: String;
-  description: String;
+  hostId: string;
+  name: string;
+  description: string;
   maxPlayers: number;
-  gameVersion: String;
+  gameVersion: string;
   gameTimeElapsed: number;
   hasPassword: boolean;
-  tags: String[];
+  tags: string[];
   modCount: number;
 
-  hostAddress: String;
+  hostAddress: string;
   mods?: Mod[];
 }
 
 class GameSearchInfo {
   serverId: ServerId;
-  name: String;
+  name: string;
   timeBegin: TimeMinutes;
   timeEnd?: TimeMinutes;
 }
 
 class TopGamesByNumberPlayersNow {
   server_id: ServerId;
-  name: String;
+  name: string;
   number_players: number;
 }
 
 class TopGamesByNumberPlayersMax {
   server_id: ServerId;
-  name: String;
+  name: string;
   number_players: number;
   time: TimeMinutes;
 }
