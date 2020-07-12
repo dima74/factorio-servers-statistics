@@ -6,7 +6,13 @@ export default class Api {
     return Object.freeze(info) as MainPageInfo;
   }
 
-  static async searchServers(query: String): Promise<GameSearchInfo[]> {
+  static async searchServers(query: string): Promise<GameSearchInfo[]> {
+    // todo
+    //  RFC says that symbols []{} must be encoded in query params
+    //  browsers (at least chrome and firefox) don't encode these symbols (because it may break existing apps)
+    //  rocket follows the RFC, so it not work well with existing browsers
+    //  https://github.com/SergioBenitez/Rocket/issues/924
+
     const params = { query };
     return (await axios.get('/search-servers', { params })).data;
   }
