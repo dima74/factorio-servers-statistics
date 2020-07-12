@@ -54,9 +54,7 @@ fn convert_game(game: &state::Game, state: &State, time_begin: TimeMinutes, time
         time_begin: game.time_begin,
         time_end: game.time_end,
         players_intervals,
-        // todo не объединять game_id, пока не отправили запрос на /get-game-details
-//        host_id: String::from_utf8(game.host_id.to_vec()).unwrap(),
-        host_id: "todo".to_owned(),
+        host_id: base64::encode(&game.host_id),
         name: state.all_game_names.get(game.name).into(),
         description: state.all_game_descriptions.get(game.description).into(),
         max_players: game.max_players,

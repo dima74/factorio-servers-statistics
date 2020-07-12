@@ -1,6 +1,7 @@
 use std::sync::Mutex;
 
 use itertools::Itertools;
+use lazy_static::lazy_static;
 use rocket::{get, State};
 use rocket::response::content;
 use rocket_contrib::json::Json;
@@ -8,7 +9,6 @@ use serde::Serialize;
 
 use fss::cacher::CacherStateLock;
 use fss::state::{ServerId, StateLock, TimeMinutes};
-use lazy_static::lazy_static;
 
 use crate::server::routes::util::ArcResponder;
 
