@@ -73,8 +73,8 @@ pub fn cacher(cacher_state_lock: CacherStateLock, state_lock: StateLock) {
     println!("[info]  [cacher] exit");
 }
 
-fn get_top_n<T, F, K>(mut values: Vec<T>, n: usize, get_key: F) -> Vec<T>
-    where F: Fn(&T) -> K, K: Ord
+fn get_top_n<T, K>(mut values: Vec<T>, n: usize, get_key: impl Fn(&T) -> K) -> Vec<T>
+    where K: Ord
 {
     if values.len() > n {
         values.partition_at_index_by_key(n - 1, &get_key);

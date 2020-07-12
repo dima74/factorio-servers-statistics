@@ -165,7 +165,7 @@ fn run_production_pipeline() {
         }).expect("Error setting SIGINT handler");
     }
 
-    // backups prune + recompress
+    // backups prune
     spawn_thread_with_name("external_storage_maintain_state_backups", external_storage::maintain_state_backups_thread);
 
     init_server_with_cacher(state_lock);

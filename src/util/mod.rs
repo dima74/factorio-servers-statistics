@@ -28,11 +28,11 @@ pub fn print_heap_stats() {
 
 /// runs `runnable` at most `number_retries` times
 /// after each failure calls `error_handler` (which is supposed for logging)
-pub fn run_with_retries<R, E, F, H>(number_retries: usize, mut runnable: F, mut error_handler: H) -> Result<R, E>
-    where
-        F: FnMut() -> Result<R, E>,
-        H: FnMut(usize, &E),
-{
+pub fn run_with_retries<R, E>(
+    number_retries: usize,
+    mut runnable: impl FnMut() -> Result<R, E>,
+    mut error_handler: impl FnMut(usize, &E),
+) -> Result<R, E> {
     assert!(number_retries >= 1);
     for request_index in 0..number_retries {
         match runnable() {

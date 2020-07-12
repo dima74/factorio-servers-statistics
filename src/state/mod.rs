@@ -44,10 +44,10 @@ pub type HostId = [u8; 32];
 /// будем использовать собственную нумерацию серверов, обозначаемую ServerId
 /// ServerId — индекс для массива game.game_ids
 /// `game_ids[ServerId]` — последний game_id этого сервера (такой что .next_game_id == None)
-#[derive(Copy, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct ServerId(NonZeroU32);
 
-#[derive(Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct Mod {
     pub name: BigStringPart,
@@ -113,6 +113,10 @@ pub struct Game {
 }
 
 impl Game {
+    pub fn get_name<'a>(&'a self, state: &'a State) -> &str {
+        state.all_game_names.get(self.name).into()
+    }
+
     pub fn number_players_online(&self) -> usize {
         let first_online_player_index = self.players_intervals.iter()
             .rposition(|player_interval| player_interval.end.is_some())
