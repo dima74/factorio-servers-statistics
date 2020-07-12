@@ -59,7 +59,7 @@ pub fn search(query: String, state_lock: State<StateLock>) -> Json<Vec<GameSearc
             let first_game = state.get_game(first_game_id);
             GameSearchInfo {
                 server_id,
-                name: state.get_game_name(last_game.game_id).to_owned(),
+                name: last_game.get_name(&state).to_owned(),
                 time_begin: first_game.time_begin,
                 time_end: last_game.time_end,
             }

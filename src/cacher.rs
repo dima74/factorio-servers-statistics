@@ -97,7 +97,7 @@ fn update_top_games_by_number_players_current(state: &State, cacher_state_lock: 
     let top_games = pairs.into_iter()
         .map(|(game, number_players)| TopGameByNumberPlayersNow {
             server_id: game.server_id.unwrap(),
-            name: state.get_game_name(game.game_id).to_owned(),
+            name: game.get_name(&state).to_owned(),
             number_players,
         })
         .collect();

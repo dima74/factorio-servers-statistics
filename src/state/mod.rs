@@ -237,7 +237,7 @@ impl State {
 
     pub fn get_game_name(&self, id: GameId) -> &str {
         let game = self.get_game(id);
-        self.all_game_names.get(game.name).into()
+        game.get_name(&self)
     }
 
     pub fn get_server_name(&self, id: ServerId) -> &str {
