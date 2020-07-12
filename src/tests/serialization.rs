@@ -4,7 +4,7 @@ use crate::external_storage;
 fn test_equal_after_serialize_deserialize() {
     dotenv::dotenv().ok();
 
-    let state_before = external_storage::fetch_state();
+    let state_before = external_storage::load_state_from_cloud();
 
     let temp_file = std::env::temp_dir().join("temp.bin");
     let temp_file = temp_file.to_str().unwrap();

@@ -151,24 +151,37 @@ fn group_game_ids_by_host<'a>(
 }
 
 fn merge_games(curr_game_id: GameId, prev_game_id: Option<GameId>, state: &mut State) {
-    let server_id = if let Some(prev_game_id) = prev_game_id {
-        let prev_game = state.get_game_mut(prev_game_id);
-        assert!(prev_game.time_end.is_some());
-        // todo: что если prev_game.next_game_id != None (мб такое возможно при приостановке)
-        prev_game.next_game_id = Some(curr_game_id);
-        let curr_game = state.get_game_mut(curr_game_id);
-        curr_game.prev_game_id = Some(prev_game_id);
+    if let Some(prev_game_id) = prev_game_id {
+        if prev_game_id >= curr_game_id {
+            eprintln!(
+                "[error] [updater] Can't merge games {} and {}: `prev_game_id >= curr_game_id`",
+                prev_game_id,
+                curr_game_id
+            );
+        }
+    }
 
-        let server_id = state.game_ids.iter()
-            .position(|&game_id| game_id == prev_game_id)
-            // prev_game_id был добавлен в state.game_ids когда происходило объединение множеств {...} и {..., prev_game_id}
-            .unwrap();
-        state.game_ids[server_id] = curr_game_id;
-        server_id
-    } else {
-        let server_id = state.game_ids.len();
-        state.game_ids.push(curr_game_id);
-        server_id
+    let server_id = match prev_game_id {
+        Some(prev_game_id) if prev_game_id < curr_game_id => {
+            let prev_game = state.get_game_mut(prev_game_id);
+            assert!(prev_game.time_end.is_some());
+            // todo: что если prev_game.next_game_id != None (мб такое возможно при приостановке)
+            prev_game.next_game_id = Some(curr_game_id);
+            let curr_game = state.get_game_mut(curr_game_id);
+            curr_game.prev_game_id = Some(prev_game_id);
+
+            let server_id = state.game_ids.iter()
+                .position(|&game_id| game_id == prev_game_id)
+                // prev_game_id был добавлен в state.game_ids когда происходило объединение множеств {...} и {..., prev_game_id}
+                .unwrap();
+            state.game_ids[server_id] = curr_game_id;
+            server_id
+        }
+        _ => {
+            let server_id = state.game_ids.len();
+            state.game_ids.push(curr_game_id);
+            server_id
+        }
     };
 
     let server_id = state.as_server_id(server_id).unwrap();

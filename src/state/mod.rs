@@ -376,6 +376,33 @@ impl State {
             game.mods = None;
         }
     }
+
+    pub fn fix_cyclic_prev_game_id(&mut self) {
+        // problematic games are #7663758 and #7664718
+        // there prev_game_id forms cyclic reference:
+        // game_id            duration   prev_game_id   next_game_id
+        // 7663758,  26561864-26564682,       7664718,       7673117
+        // 7664718,  26562111-26564810,       7663758,       7663758
+        let id1 = GameId::new(7663758).unwrap();
+        let id2 = GameId::new(7664718).unwrap();
+        let id3 = GameId::new(7673117).unwrap();
+        self.get_game_mut(id1).prev_game_id = None;
+        self.get_game_mut(id1).next_game_id = Some(id2);
+        self.get_game_mut(id2).prev_game_id = Some(id1);
+        self.get_game_mut(id2).next_game_id = Some(id3);
+        self.get_game_mut(id3).prev_game_id = Some(id2);
+    }
+
+    pub fn validate_state(&self) {
+        for game in self.games.values() {
+            if let Some(prev_game_id) = game.prev_game_id {
+                assert!(prev_game_id < game.game_id);
+            }
+            if let Some(next_game_id) = game.next_game_id {
+                assert!(game.game_id < next_game_id);
+            }
+        }
+    }
 }
 
 #[cfg(test)]

@@ -115,7 +115,7 @@ fn run_production_pipeline() {
     spawn_thread_with_name("fetcher_get_games", move || fetcher_get_games::fetcher(sender_fetcher_get_games));
 
     // state
-    let mut whole_state = external_storage::fetch_state();
+    let mut whole_state = external_storage::load_state_from_cloud();
     whole_state.state.compress();
     let updater_state_lock = Arc::new(RwLock::new(whole_state.updater_state));
     let state_lock = Arc::new(RwLock::new(whole_state.state));
@@ -323,7 +323,7 @@ fn convert_state() {
 }
 
 fn fetch_latest_state() {
-    let mut whole_state = external_storage::fetch_state();
+    let mut whole_state = external_storage::load_state_from_cloud();
     whole_state.state.compress();
     external_storage::save_state_to_file(whole_state.deref(), DEBUG_STATE_FILE);
 }

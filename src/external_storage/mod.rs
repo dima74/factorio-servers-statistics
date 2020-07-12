@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::error::Error;
 use std::fs::File;
+use std::io::Read;
 use std::num::NonZeroU32;
 use std::path::Path;
 use std::sync::{Arc, mpsc};
@@ -81,7 +82,15 @@ pub fn get_last_state_path() -> Option<String> {
     paths.into_iter().max()
 }
 
-pub fn fetch_state() -> WholeState {
+fn load_state_from_reader(reader: impl Read) -> WholeState {
+    let (updater_state, state, fetcher_get_game_details_state) = bincode::deserialize_from(reader).unwrap();
+    let mut state: State = state;
+    state.fix_cyclic_prev_game_id();
+    state.validate_state();
+    WholeState { updater_state, state, fetcher_get_game_details_state }
+}
+
+pub fn load_state_from_cloud() -> WholeState {
     use tokio::runtime::Runtime;
 
     let path = get_last_state_path().unwrap();
@@ -89,18 +98,14 @@ pub fn fetch_state() -> WholeState {
     let mut reader = yandex_cloud_storage::download(&mut runtime, &path)
         .expect(&format!("Couldn't download {} object from Yandex.Cloud", path));
     let reader = compression::new_decoder(&mut reader, &path);
-
-    let (updater_state, state, fetcher_get_game_details_state) = bincode::deserialize_from(reader).unwrap();
-    WholeState { updater_state, state, fetcher_get_game_details_state }
+    load_state_from_reader(reader)
 }
 
 pub fn load_state_from_file(filename: &str) -> WholeState {
     let reader = File::open(filename).unwrap();
     let mut reader = new_buf_reader(reader);
     let reader = compression::new_decoder(&mut reader, filename);
-
-    let (updater_state, state, fetcher_get_game_details_state) = bincode::deserialize_from(reader).unwrap();
-    WholeState { updater_state, state, fetcher_get_game_details_state }
+    load_state_from_reader(reader)
 }
 
 #[derive(PartialEq, Debug)]
