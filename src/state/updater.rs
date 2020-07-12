@@ -283,6 +283,10 @@ pub fn try_merge_host_ids(updater_state: &mut UpdaterState, state: &mut State, t
             let curr_game_ids_host = curr_game_ids_host.unwrap();
 
             if try_merge_host(prev_game_ids_host, curr_game_ids_host, state) {
+                if time.get() - merge_info.time_begin.get() > 24 * 60 /* 1 day */ {
+                    eprintln!("[error] [updater] host {} waited merge too long: {:?}-{:?}",
+                              base64::encode(host_id), merge_info.time_begin, merge_info.time_end);
+                }
                 None
             } else {
                 Some((host_id, merge_info))
