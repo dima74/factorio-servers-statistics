@@ -115,8 +115,11 @@ fn run_production_pipeline() {
     spawn_thread_with_name("fetcher_get_games", move || fetcher_get_games::fetcher(sender_fetcher_get_games));
 
     // state
+    println!("[info]  [startup] starting fetching state");
     let mut whole_state = external_storage::load_state_from_cloud();
+    println!("[info]  [startup] finished fetching state");
     whole_state.state.compress();
+    println!("[info]  [startup] finished compressing state");
     let updater_state_lock = Arc::new(RwLock::new(whole_state.updater_state));
     let state_lock = Arc::new(RwLock::new(whole_state.state));
     let fetcher_get_game_details_state_lock = Arc::new(RwLock::new(whole_state.fetcher_get_game_details_state));
@@ -168,6 +171,7 @@ fn run_production_pipeline() {
     // backups prune
     spawn_thread_with_name("external_storage_maintain_state_backups", external_storage::maintain_state_backups_thread);
 
+    println!("[info]  [startup] launching Rocket...");
     init_server_with_cacher(state_lock);
 }
 
