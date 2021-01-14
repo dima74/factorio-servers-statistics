@@ -34,7 +34,7 @@ pub fn analytics(whole_state: WholeState) {
         println!("scheduled to merge game_ids: {:?}", number_game_ids_to_merge);
     }
 
-    // mods
+    // mods duplication (when game has same mods as prev_game)
     {
         let mut number_matched_games = 0;
         let mut number_matched_mods = 0;
@@ -56,6 +56,28 @@ pub fn analytics(whole_state: WholeState) {
         }
         println!("number games which has same mods as prev_game: {:?}", number_matched_games);
         println!("number duplicated mods: {:?}", number_matched_mods);
+    }
+
+    // mods unique count
+    {
+        let mods_all: Vec<Mod> = state.games.values()
+            .flat_map(|game| game.mods.clone().unwrap_or_default())
+            .collect();
+        let number_mods_all = mods_all.len();
+        let number_mods_unique = mods_all.iter().unique().count();
+        println!("`Mod` objects unique/all: {}/{}", number_mods_unique, number_mods_all);
+
+        let mod_sets_all: Vec<Vec<Mod>> = state.games.values()
+            .map(|game| game.mods.clone().unwrap_or_default())
+            .filter(|mods| !mods.is_empty())
+            .collect();
+        let mod_sets_unique: Vec<Vec<Mod>> = mod_sets_all.iter().unique().cloned().collect();
+        println!("mod sets (Vec<Mod>) unique/all: {}/{}", mod_sets_unique.len(), mod_sets_all.len());
+        println!(
+            "number mods in mod sets unique/mod sets all: {}/{}",
+            mod_sets_unique.iter().map(|mods| mods.len()).sum::<usize>(),
+            mod_sets_all.iter().map(|mods| mods.len()).sum::<usize>()
+        );
     }
 
     // объём памяти занимаемый games (map из GameId в Game) в идеальном случае
