@@ -163,6 +163,12 @@ fn merge_games(curr_game_id: GameId, prev_game_id: Option<GameId>, state: &mut S
 
     let server_id = match prev_game_id {
         Some(prev_game_id) if prev_game_id < curr_game_id => {
+            println!(
+                "[info]  [updater] merging games {} and {}  (`{}` and `{}`)",
+                prev_game_id, curr_game_id,
+                state.get_game_name(prev_game_id), state.get_game_name(curr_game_id)
+            );
+
             let prev_game = state.get_game_mut(prev_game_id);
             assert!(prev_game.time_end.is_some());
             // todo: что если prev_game.next_game_id != None (мб такое возможно при приостановке)
@@ -173,7 +179,7 @@ fn merge_games(curr_game_id: GameId, prev_game_id: Option<GameId>, state: &mut S
             let server_id = state.game_ids.iter()
                 .position(|&game_id| game_id == prev_game_id)
                 // prev_game_id был добавлен в state.game_ids когда происходило объединение множеств {...} и {..., prev_game_id}
-                .unwrap();
+                .unwrap_or_else(|| panic!("Can't find prev game: prev_game_id={}, curr_game_id={}", prev_game_id, curr_game_id));
             state.game_ids[server_id] = curr_game_id;
             server_id
         }
@@ -251,9 +257,10 @@ fn try_merge_host(prev_game_ids_host: &[GameId], curr_game_ids_host: &[GameId], 
     } else {
         let get_game_name = |&game_id: &GameId, state: &State| state.get_game_name(game_id).to_owned();
         let get_game_host = |&game_id: &GameId, state: &State| state.get_game_host(game_id).unwrap().to_owned();
-        let matched_by_name = try_match_by_property(&prev_game_ids_host, &curr_game_ids_host, state, get_game_name);
-        let matched_by_host = try_match_by_property(&prev_game_ids_host, &curr_game_ids_host, state, get_game_host);
-        let matched = matched_by_name || matched_by_host;
+        // It is extremely important that we call second [try_match_by_property] only if first returns false
+        let matched = false
+            || try_match_by_property(&prev_game_ids_host, &curr_game_ids_host, state, get_game_name)
+            || try_match_by_property(&prev_game_ids_host, &curr_game_ids_host, state, get_game_host);
         if !matched {
             eprintln!("[warn]  [updater] can't match games: {:?} with {:?}", prev_game_ids_host, curr_game_ids_host);
             for game_id in curr_game_ids_host {
@@ -278,11 +285,17 @@ pub fn try_merge_host_ids(updater_state: &mut UpdaterState, state: &mut State, t
             let curr_game_ids_host = curr_game_ids_by_host.get(&host_id);
             if curr_game_ids_host.is_none() {
                 // новых game_id не появилось: нечего объединять
+                println!("[info]  [updater] host {}: merge failed - no new games", base64::encode(host_id));
                 return None;
             }
             let curr_game_ids_host = curr_game_ids_host.unwrap();
 
+            println!(
+                "[info]  [updater] host {}: merging games {:?} and {:?}",
+                base64::encode(host_id), prev_game_ids_host, curr_game_ids_host
+            );
             if try_merge_host(prev_game_ids_host, curr_game_ids_host, state) {
+                println!("[info]  [updater] host {}: merge successful", base64::encode(host_id));
                 if time.get() - merge_info.time_begin.get() > 24 * 60 /* 1 day */ {
                     eprintln!("[error] [updater] host {} waited merge too long: {:?}-{:?}",
                               base64::encode(host_id), merge_info.time_begin, merge_info.time_end);
