@@ -15,7 +15,7 @@ pub type GetGameDetailsResponse = Game;
 
 const MOCK_API: bool = false;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ApplicationVersion {
     pub game_version: String,
@@ -25,14 +25,14 @@ pub struct ApplicationVersion {
     pub platform: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Mod {
     pub name: String,
     pub version: String,
 }
 
 // более правильным было бы назвать этот класс GameSnapshot
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Game {
     // common fields

@@ -1,3 +1,4 @@
+use std::fmt;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -14,8 +15,14 @@ mod big_string;
 
 /// unix time, с точностью до минут
 /// (число минут, прошедшее с UNIX_EPOCH)
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct TimeMinutes(pub NonZeroU32);
+
+impl fmt::Debug for TimeMinutes {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl TimeMinutes {
     pub const WEEK: u32 = 7 * 24 * 60;
@@ -44,17 +51,23 @@ pub type HostId = [u8; 32];
 /// будем использовать собственную нумерацию серверов, обозначаемую ServerId
 /// ServerId — индекс для массива game.game_ids
 /// `game_ids[ServerId]` — последний game_id этого сервера (такой что .next_game_id == None)
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
 pub struct ServerId(NonZeroU32);
 
-#[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+impl fmt::Display for ServerId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0.get())
+    }
+}
+
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Mod {
     pub name: BigStringPart,
     pub version: BigStringPart,
 }
 
-#[derive(Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlayerInterval {
     pub player_index: BigStringPart,
@@ -77,7 +90,7 @@ impl PlayerInterval {
 // в течении сессии метаинформация о сервере (название, версия, моды и т.д.) не должны меняться
 // ожидается, что сессия длится непрерывный отрезок по времени
 //     (однако по наблюдениям сессия может прерываться на очень большой промежуток времени, вплоть до ~30 часов)
-#[derive(Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Game {
     pub game_id: GameId,
@@ -126,7 +139,7 @@ impl Game {
     }
 
     pub fn maximum_number_players(&self) -> (usize, TimeMinutes) {
-        #[derive(Ord, PartialOrd, Eq, PartialEq)]
+        #[derive(Eq, PartialEq, Ord, PartialOrd)]
         enum EventType { Begin, End }
 
         let now = TimeMinutes::now();
@@ -207,7 +220,7 @@ pub type StateLock = Arc<RwLock<State>>;
 // pub type GamesMap = std::collections::BTreeMap<GameId, Game>;
 pub type GamesMap = crate::util::games_map::GamesMap;
 
-#[derive(Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct State {
     pub games: GamesMap,

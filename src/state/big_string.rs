@@ -4,7 +4,7 @@ use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 
 // todo documentation
-#[derive(Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Eq, PartialEq, Serialize, Deserialize)]
 pub struct BigString {
     #[serde(skip)]
     debug_name: String,
@@ -104,7 +104,7 @@ impl BigString {
 }
 
 // индекс подстроки в большой строке
-#[derive(Copy, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct BigStringPart(NonZeroU32);
 
 // type-safe часть (sub-slice) BigString
