@@ -47,14 +47,35 @@ impl GamesMap {
 
     pub fn insert(&mut self, k: GameId, v: Game) {
         if self.values.capacity() == self.values.len() {
-            eprintln!("[error] [FssHashMap] reallocation during insert: len and capacity is {}", self.values.len());
+            eprintln!("[error] [GamesMap] reallocation during insert: len and capacity is {}", self.values.len());
         }
 
-        if let Some(last_game) = self.values.last() {
-            let last_game_id = last_game.game_id;
-            assert!(last_game_id < k);
+        match self.values.last() {
+            None => {
+                self.values.push(v)
+            }
+            Some(last_game) if last_game.game_id < k => {
+                self.values.push(v)
+            }
+            _ => {
+                /* При корректной работе код не должен заходить в данную ветку. */
+
+                // Это означает что существует game_id (k),
+                // и два момента времени t1 и t2 (current), такие что:
+                // - в момент времени t1 в snapshot не было game_id, но была какая-то игра с большим game_id
+                // - в момент времени t2 в snapshot был game_id
+                // То есть, кажется (?), игра с таким game_id была раньше, пропала, и снова появилась
+                let last_game_id = self.values.last().map(|game| game.game_id);
+                eprintln!("[error] [GamesMap] adding game with inconsistent id {} (last_game_id={:?})", k, last_game_id);
+
+                match self.values.binary_search_by_key(&k, |game| game.game_id) {
+                    Ok(_) => panic!("GamesMap already contains game with id {}", k),
+                    Err(index) => {
+                        self.values.insert(index, v);
+                    }
+                }
+            }
         }
-        self.values.push(v);
     }
 
     pub fn values(&self) -> impl Iterator<Item=&Game> {
