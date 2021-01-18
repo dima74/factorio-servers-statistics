@@ -2,6 +2,7 @@ use std::io::{BufReader, BufWriter, Read, Write};
 use std::time::{Duration, SystemTime};
 
 pub mod games_map;
+pub mod map_deref;
 
 pub fn duration_since(later: SystemTime, earlier: SystemTime) -> Duration {
     later.duration_since(earlier).expect("Time went backwards")

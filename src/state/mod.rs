@@ -1,5 +1,6 @@
 use std::fmt;
 use std::num::NonZeroU32;
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -9,6 +10,7 @@ use serde::{Deserialize, Serialize};
 pub use big_string::*;
 
 use crate::util::duration_since;
+use crate::util::map_deref::{map_deref, map_deref_mut};
 
 pub mod updater;
 mod big_string;
@@ -215,7 +217,41 @@ impl Game {
     }
 }
 
-pub type StateLock = Arc<RwLock<State>>;
+pub struct StateLock(Arc<RwLock<Option<State>>>);
+
+impl StateLock {
+    pub fn new(state: State) -> Self {
+        Self(Arc::new(RwLock::new(Some(state))))
+    }
+
+    pub fn empty() -> Self {
+        Self(Arc::new(RwLock::new(None)))
+    }
+
+    pub fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+
+    pub fn read<'a>(&'a self) -> impl Deref<Target=State> + 'a {
+        map_deref(self.0.read(), |state| state.as_ref().unwrap())
+    }
+
+    pub fn write<'a>(&'a self) -> impl DerefMut<Target=State> + 'a {
+        map_deref_mut(
+            self.0.write(),
+            |state| state.as_ref().unwrap(),
+            |state| state.as_mut().unwrap(),
+        )
+    }
+
+    pub fn is_some(&self) -> bool {
+        self.0.read().is_some()
+    }
+
+    pub fn set(&self, state: State) {
+        *self.0.write() = Some(state);
+    }
+}
 
 // pub type GamesMap = std::collections::BTreeMap<GameId, Game>;
 pub type GamesMap = crate::util::games_map::GamesMap;

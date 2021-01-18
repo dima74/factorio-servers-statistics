@@ -68,7 +68,7 @@ fn merge() {
 
     let whole_state = external_storage::get_empty_state();
     let updater_state_lock = Arc::new(RwLock::new(whole_state.updater_state));
-    let state_lock = Arc::new(RwLock::new(whole_state.state));
+    let state_lock = StateLock::new(whole_state.state);
 
     // fetcher_get_game_details
     {

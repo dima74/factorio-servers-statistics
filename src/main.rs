@@ -17,6 +17,7 @@ use fss::external_storage::SaverEvent;
 use fss::global_config::GLOBAL_CONFIG;
 use fss::state::StateLock;
 use fss::util::basename;
+use cacher::CacherState;
 
 mod server;
 
@@ -95,20 +96,19 @@ fn regular_saver_notifier(sender: mpsc::Sender<SaverEvent>) {
     println!("[info]  [regular_saver_notifier] exit");
 }
 
-fn init_server_with_cacher(state_lock: StateLock) {
-    let cacher_state = cacher::CacherState::new();
-    let cacher_state_lock = Arc::new(RwLock::new(cacher_state));
+fn run_production_pipeline() {
+    let state_lock = StateLock::empty();
+    let cacher_state_lock = Arc::new(RwLock::new(CacherState::new()));
 
-    {
+    // Heroku forces us to bind to port within 60 seconds
+    // So we have to launch Rocket ASAP
+    println!("[info]  [startup] launching Rocket...");
+    let rocket_thread = {
         let state_lock = state_lock.clone();
         let cacher_state_lock = cacher_state_lock.clone();
-        spawn_thread_with_name("cache", move || cacher::cacher(cacher_state_lock, state_lock));
-    }
+        spawn_thread_with_name("rocket", || server::init(state_lock, cacher_state_lock))
+    };
 
-    server::init(state_lock, cacher_state_lock);
-}
-
-fn run_production_pipeline() {
     // todo убедиться что capacity(channel) == infinity, чтобы fetcher не блокировался на время подготовки данных для updater
     // fetcher_get_games
     let (sender_fetcher_get_games, receiver_fetcher_get_games) = mpsc::channel();
@@ -121,7 +121,7 @@ fn run_production_pipeline() {
     whole_state.state.compress();
     println!("[info]  [startup] finished compressing state");
     let updater_state_lock = Arc::new(RwLock::new(whole_state.updater_state));
-    let state_lock = Arc::new(RwLock::new(whole_state.state));
+    state_lock.set(whole_state.state);
     let fetcher_get_game_details_state_lock = Arc::new(RwLock::new(whole_state.fetcher_get_game_details_state));
 
     // fetcher_get_game_details
@@ -171,16 +171,26 @@ fn run_production_pipeline() {
     // backups prune
     spawn_thread_with_name("external_storage_maintain_state_backups", external_storage::maintain_state_backups_thread);
 
-    println!("[info]  [startup] launching Rocket...");
-    init_server_with_cacher(state_lock);
+    spawn_thread_with_name("cache", move || cacher::cacher(cacher_state_lock, state_lock));
+
+    // [rocket_thread] should never return, here we just wait infinitely
+    rocket_thread.join().unwrap();
 }
 
 fn run_web_server() {
     println!("Loading state...");
     let whole_state = external_storage::load_state_from_file(DEBUG_STATE_FILE);
-    let state_lock = Arc::new(RwLock::new(whole_state.state));
-    println!("Starting server...");
-    init_server_with_cacher(state_lock);
+    let state_lock = StateLock::new(whole_state.state);
+    let cacher_state_lock = Arc::new(RwLock::new(CacherState::new()));
+
+    {
+        let state_lock = state_lock.clone();
+        let cacher_state_lock = cacher_state_lock.clone();
+        spawn_thread_with_name("cache", move || cacher::cacher(cacher_state_lock, state_lock));
+    }
+
+    println!("Launching Rocket...");
+    server::init(state_lock, cacher_state_lock);
 }
 
 fn run_analytics() {
@@ -202,7 +212,7 @@ fn debug_fetcher_get_game_details() {
     // state
     let whole_state = external_storage::get_empty_state();
     let updater_state_lock = Arc::new(RwLock::new(whole_state.updater_state));
-    let state_lock = Arc::new(RwLock::new(whole_state.state));
+    let state_lock = StateLock::new(whole_state.state);
     let fetcher_get_game_details_state_lock = Arc::new(RwLock::new(whole_state.fetcher_get_game_details_state));
 
     // fetcher_get_game_details
@@ -229,7 +239,7 @@ fn debug_updater() {
     // state
     let whole_state = external_storage::get_empty_state();
     let updater_state_lock = Arc::new(RwLock::new(whole_state.updater_state));
-    let state_lock = Arc::new(RwLock::new(whole_state.state));
+    let state_lock = StateLock::new(whole_state.state);
 
     let (sender_fetcher_get_game_details, _receiver_fetcher_get_game_details) = mpsc::channel();
 
@@ -250,7 +260,7 @@ fn create_state_from_saved_data(number_responses: u32) {
     // state
     let whole_state = external_storage::get_empty_state();
     let updater_state_lock = Arc::new(RwLock::new(whole_state.updater_state));
-    let state_lock = Arc::new(RwLock::new(whole_state.state));
+    let state_lock = StateLock::new(whole_state.state);
     let fetcher_get_game_details_state_lock = Arc::new(RwLock::new(whole_state.fetcher_get_game_details_state));
 
     // fetcher_get_game_details
@@ -293,7 +303,7 @@ fn create_state(number_responses: u32) {
     // state
     let whole_state = external_storage::get_empty_state();
     let updater_state_lock = Arc::new(RwLock::new(whole_state.updater_state));
-    let state_lock = Arc::new(RwLock::new(whole_state.state));
+    let state_lock = StateLock::new(whole_state.state);
     let fetcher_get_game_details_state_lock = Arc::new(RwLock::new(whole_state.fetcher_get_game_details_state));
 
     // fetcher_get_game_details
