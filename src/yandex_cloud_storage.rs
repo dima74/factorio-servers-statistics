@@ -60,7 +60,7 @@ pub fn list_bucket(path: &str) -> Vec<String> {
         .collect()
 }
 
-async fn get_rusoto_streaming_body(filename: &Path) -> (StreamingBody, u64) {
+async fn get_rusoto_streaming_body(filename: &Path) -> StreamingBody {
     // https://users.rust-lang.org/t/turning-a-file-into-futures-stream/33480/6
     // (old) https://github.com/rusoto/rusoto/issues/1509
     // (old) https://stackoverflow.com/a/57812269/5812238
@@ -70,15 +70,13 @@ async fn get_rusoto_streaming_body(filename: &Path) -> (StreamingBody, u64) {
     use tokio_util::codec::{BytesCodec, FramedRead};
 
     let file = tokio::fs::File::open(filename).await.unwrap();
-    let file_length = file.metadata().await.unwrap().len();
-
     let stream = FramedRead::new(file, BytesCodec::new()).map_ok(BytesMut::freeze);
-    let streaming_body = StreamingBody::new(stream);
-    (streaming_body, file_length)
+    StreamingBody::new(stream)
 }
 
 async fn upload_async(path: &str, filename: &Path, content_type: &str) -> Result<(), Box<dyn Error>> {
-    let (streaming_body, file_length) = get_rusoto_streaming_body(filename).await;
+    let file_length = std::fs::metadata(filename).unwrap().len();
+    let streaming_body = get_rusoto_streaming_body(filename).await;
     let put_request = PutObjectRequest {
         bucket: BUCKET.to_owned(),
         key: path.to_string(),

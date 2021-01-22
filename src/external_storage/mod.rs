@@ -199,6 +199,9 @@ pub fn recompress_backups() -> Result<(), Box<dyn Error>> {
         let mut writer = compression::new_encoder(&mut writer, &path_xz);
 
         std::io::copy(&mut reader, &mut writer)?;
+        drop(reader);
+        drop(writer);  // to flush buffer
+
         yandex_cloud_storage::upload_with_retries(&path_xz, Path::new(TEMPORARY_XZ_FILE_FOR_RECOMPRESS), CONTENT_TYPE, 10);
 
         yandex_cloud_storage::delete(&path_lz4)?;
