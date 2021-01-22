@@ -77,7 +77,7 @@ fn get_top_n<T, K>(mut values: Vec<T>, n: usize, get_key: impl Fn(&T) -> K) -> V
     where K: Ord
 {
     if values.len() > n {
-        values.partition_at_index_by_key(n - 1, &get_key);
+        values.select_nth_unstable_by_key(n - 1, &get_key);
         values.truncate(n);
     }
     values.sort_by_key(get_key);
