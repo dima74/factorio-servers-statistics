@@ -5,19 +5,17 @@
 use std::{fs, thread};
 use std::path::Path;
 use std::sync::{Arc, mpsc};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
 use clap::{App, value_t};
 use parking_lot::RwLock;
 
+use cacher::CacherState;
 use fss::{analytics, api, cacher, external_storage, fetcher_get_game_details, fetcher_get_games, fetcher_get_games_offline, state, util, yandex_cloud_storage};
-use fss::external_storage::SaverEvent;
 use fss::global_config::GLOBAL_CONFIG;
 use fss::state::StateLock;
 use fss::util::basename;
-use cacher::CacherState;
 
 mod server;
 
@@ -83,17 +81,12 @@ fn spawn_thread_with_name<F>(name: &str, f: F) -> JoinHandle<()>
     thread::Builder::new().name(name.to_owned()).spawn(f).unwrap()
 }
 
-fn regular_saver_notifier(sender: mpsc::Sender<SaverEvent>) {
+fn regular_saver_notifier(sender: mpsc::Sender<()>) {
     const SAVER_NOTIFY_INTERVAL: u64 = 10 * 60; // in seconds
     loop {
         thread::sleep(Duration::from_secs(SAVER_NOTIFY_INTERVAL));
-        let result = sender.send(SaverEvent::REGULAR);
-        // если .send() вернул ошибку, это означает что saver получил SaverEvent::SIGINT и завершил работу
-        if result.is_err() {
-            break;
-        }
+        sender.send(()).unwrap();
     }
-    println!("[info]  [regular_saver_notifier] exit");
 }
 
 fn run_production_pipeline() {
@@ -149,24 +142,7 @@ fn run_production_pipeline() {
     }
 
     // saver notifier
-    {
-        let saver_sender = saver_sender.clone();
-        spawn_thread_with_name("saver_notifier", move || regular_saver_notifier(saver_sender));
-    }
-
-    // SIGINT handler
-    {
-        let saver_sender = saver_sender.clone();
-        let already_received_sigint = AtomicBool::new(false);
-        ctrlc::set_handler(move || {
-            if already_received_sigint.swap(true, Ordering::SeqCst) {
-                eprintln!("[warn]  [sigint_handler] already received sigint");
-                return;
-            }
-            // .send() возвращает ошибку если receiver был уничтожен (deallocate), но у нас такого не может быть
-            saver_sender.send(SaverEvent::SIGINT).unwrap();
-        }).expect("Error setting SIGINT handler");
-    }
+    spawn_thread_with_name("saver_notifier", move || regular_saver_notifier(saver_sender));
 
     // backups prune
     spawn_thread_with_name("external_storage_maintain_state_backups", external_storage::maintain_state_backups_thread);

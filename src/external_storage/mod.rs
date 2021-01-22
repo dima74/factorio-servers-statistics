@@ -13,7 +13,6 @@ use itertools::Itertools;
 use parking_lot::RwLock;
 
 use crate::{fetcher_get_game_details, state, yandex_cloud_storage};
-use crate::external_storage::SaverEvent::SIGINT;
 use crate::state::{BigString, State, StateLock};
 use crate::state::updater::UpdaterState;
 use crate::util::{new_buf_reader, new_buf_writer};
@@ -108,12 +107,6 @@ pub fn load_state_from_file(filename: &str) -> WholeState {
     load_state_from_reader(reader)
 }
 
-#[derive(PartialEq, Debug)]
-pub enum SaverEvent {
-    REGULAR,
-    SIGINT,
-}
-
 pub fn save_state_to_file(whole_state: WholeStateRef, filename: &str) {
     let data = whole_state;
 
@@ -147,7 +140,7 @@ pub fn saver(
     updater_state_lock: Arc<RwLock<UpdaterState>>,
     state_lock: StateLock,
     fetcher_get_game_details_state_lock: Arc<RwLock<fetcher_get_game_details::State>>,
-    receiver: mpsc::Receiver<SaverEvent>,
+    receiver: mpsc::Receiver<()>,
 ) {
     for event in receiver {
         println!("[info]  [saver] start (by event {:?})", event);
@@ -156,10 +149,6 @@ pub fn saver(
         let fetcher_get_game_details_state = fetcher_get_game_details_state_lock.read();
         save_state((&updater_state, &state, &fetcher_get_game_details_state));
         println!("[info]  [saver] done");
-        if event == SIGINT {
-            println!("[info]  [saver] exit (finished)");
-            std::process::exit(77);
-        }
     }
     eprintln!("[error] [saver] exit");
 }
