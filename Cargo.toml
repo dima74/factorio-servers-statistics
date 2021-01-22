@@ -7,10 +7,10 @@ edition = "2018"
 default-run = "fss"
 
 [profile.dev]
-panic = 'abort'
-
+debug = true
 [profile.release]
-panic = 'abort'
+debug = true
+[profile.test]
 debug = true
 
 [profile.dev.package."*"]
