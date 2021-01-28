@@ -66,7 +66,7 @@ impl GamesMap {
                 // - в момент времени t2 в snapshot был game_id
                 // То есть, кажется (?), игра с таким game_id была раньше, пропала, и снова появилась
                 let last_game_id = self.values.last().map(|game| game.game_id);
-                eprintln!("[error] [GamesMap] adding game with inconsistent id {} (last_game_id={:?})", k, last_game_id);
+                eprintln!("[warn]  [GamesMap] adding game with inconsistent id {} (last_game_id={:?})", k, last_game_id);
 
                 match self.values.binary_search_by_key(&k, |game| game.game_id) {
                     Ok(_) => panic!("GamesMap already contains game with id {}", k),
